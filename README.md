@@ -1,274 +1,322 @@
-# CampusSwap AI
+# SwApStEr
 
-**Your campus deals, negotiated by AI.** A local academic marketplace built for Cubbie Hackathon Track 2: Agent-to-Agent Coordination. Independent buyer and seller agents exchange structured offers with separate private contexts, negotiate conflicting student constraints, and ask both humans to approve.
+**Your campus. Your deals. Your AI negotiator.**
 
-## What works
+SwApStEr is an AI-powered campus marketplace where students have personal AI agents that negotiate purchases and rentals on their behalf.
 
-- Responsive Next.js marketplace with seeded academic listings, search, categories, price sorting, item details, listing creation, and My listings.
-- Dynamic SQLite student profiles, optional university/major, profile creation and switching, and persistent server-managed demo sessions. Abbhijit, Shorya Moses, and Oumar are the initial profiles; anyone can be a buyer or seller.
-- Buyer preferences, persisted SQLite sessions, live incremental agent turns, current offer, pickup/return details, thinking states, restart, and saved history.
-- Independent buyer/seller agent modules, deterministic dynamic mock negotiation, interchangeable Ollama structured-JSON provider, explicit fallback control.
-- Decimal price enforcement, timezone-aware pickup checks, rental and availability checks, eight-turn cap, rejection, and independent dual approval.
-- Opaque server-side demo identity sessions; private limits omitted from ordinary API responses; disabled-by-default, local-only Judge Mode.
-- Generated device/book illustrations use CSS/SVG and need no external assets or API keys.
+Built for **Cubbie Hackathon — Track 2: Agent-to-Agent Coordination**.
 
-## Prerequisites and installation
+**GitHub:** https://github.com/abbhijitv/SwApStEr
 
-Verified host: macOS 14.3, Apple Silicon arm64, Python 3.9.6, Node 24.14.1, npm 11.11.0. Homebrew, Git, Chrome, and Ollama were already installed. Python 3.9 works; newer supported Python is recommended for future development.
+## The Problem
 
-From this repository root:
+College students frequently need calculators, textbooks, and other academic essentials, but buying everything new is expensive.
+
+Campus marketplaces help, but negotiating prices, coordinating schedules, and arranging pickups can involve awkward conversations and unnecessary back-and-forth.
+
+**What if your AI agent could handle the negotiation while you kept the final say?**
+
+## Our Solution
+
+SwApStEr gives each student an independent AI agent.
+
+- **Buyer AI:** Negotiates for the best acceptable price while respecting the buyer's private maximum budget.
+- **Seller AI:** Negotiates favorable terms while respecting the seller's private minimum price.
+- **Agent-to-agent coordination:** Both agents exchange structured offers containing prices, pickup times, locations, and rental durations.
+- **Constraint validation:** The backend checks whether proposed terms satisfy student preferences and item availability.
+- **Human approval:** Both students must independently approve the final proposal.
+
+**AI negotiates. Students decide.**
+
+## How It Works
+
+1. A student lists an item for sale or rent.
+2. Another student selects the item and enters private preferences.
+3. The buyer's AI agent initiates negotiation with the seller's AI agent.
+4. Agents exchange offers without revealing private budget limits.
+5. The backend validates the proposed terms.
+6. When an agreement is reached, both students receive a proposal.
+7. The deal is confirmed only after both students approve.
+
+If the students' constraints are incompatible, SwApStEr refuses to create an invalid agreement.
+
+## Real Demo — Successful Negotiation
+
+**Campus scenario:** A student needs a TI-84 Plus CE graphing calculator for MAT 265 at Arizona State University.
+
+| Detail | Value |
+|---|---|
+| Item | TI-84 Plus CE Graphing Calculator |
+| Seller | Shorya Moses |
+| Buyer | Oumar |
+| Asking price | $35 |
+| Rental duration | 3 days |
+| Pickup location | Hayden Library |
+| AI provider | Ollama — Qwen 2.5 3B |
+
+### Agent Conversation
+
+**Buyer AI:** Offers $16.
+
+**Seller AI:** Counters at $20.
+
+**Buyer AI:** Accepts $20.
+
+The final proposed price is **$20 for three days**, saving the buyer $15 compared with the asking price.
+
+The buyer approves the proposal, but it remains pending until the seller independently approves.
+
+**Final result: Confirmed — both students approved.**
+
+This negotiation was demonstrated using the real local Ollama model, not just a scripted mock conversation.
+
+## Conflict Demonstration — Incompatible Schedules
+
+SwApStEr also handles situations where students cannot agree.
+
+For the same calculator:
+
+- **Seller availability:** October 28, 2026, 4:00–8:00 PM.
+- **Buyer availability:** October 28, 2026, 9:00–10:00 AM.
+
+Because there is no overlapping pickup window, the system returns:
+
+**No agreement — incompatible pickup schedules or academic deadline.**
+
+No deal is created, and neither student's availability constraints are violated.
+
+This conflict is detected by deterministic backend validation before AI negotiation begins.
+
+## Why This Fits Track 2
+
+SwApStEr demonstrates:
+
+- Independent personal AI agents representing different students.
+- Agent-to-agent exchange of relevant public deal information.
+- Different private goals and constraints.
+- Negotiation toward a mutually acceptable outcome.
+- Conflict detection and safe rejection of incompatible terms.
+- Independent human approval before confirmation.
+- A practical campus scenario involving academic equipment.
+
+Unlike a traditional marketplace, SwApStEr lets agents coordinate on behalf of their students instead of requiring students to negotiate manually.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js, React, TypeScript |
+| Backend | Python, FastAPI |
+| Database | SQLite |
+| AI inference | Ollama |
+| Model | Qwen 2.5 3B |
+| Testing | Pytest, Playwright |
+| Deployment | Local prototype |
+
+The project runs locally without paid AI APIs.
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9 or newer compatible environment
+- Node.js and npm
+- Git
+- Ollama
+- Google Chrome for browser testing
+
+### Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/abbhijitv/SwApStEr.git
+cd SwApStEr
+```
+
+Set up the Python environment and frontend:
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements.txt
 npm ci --prefix frontend
+```
+
+Create the environment configuration:
+
+```bash
 cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
-Backend exact installed versions are recorded in `backend/requirements.lock.txt`; use that file instead of requirements.txt to reproduce this Python 3.9 environment. No global Python package installation, paid APIs, Docker, Redis, or cloud database is needed. SQLite is seeded once automatically. Dates use the next Wednesday in America/Phoenix when the database is first seeded. Do not delete a populated database to refresh demo dates; create a fresh DATABASE_URL if needed.
+### Set Up Ollama
 
-## Run
+Install Ollama if needed, then download the model:
 
-In terminal 1, from the root:
+```bash
+ollama pull qwen2.5:3b
+```
+
+Make sure Ollama is running on:
+
+```text
+http://localhost:11434
+```
+
+### Start SwApStEr
+
+From the repository root:
+
+```bash
+./scripts/start.sh
+```
+
+Alternatively, run the backend and frontend separately:
 
 ```bash
 .venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-In terminal 2:
-
 ```bash
 npm run dev --prefix frontend
 ```
 
-Or run `./scripts/start.sh` to start both. Open **http://localhost:3000** (use localhost consistently for cookie/CORS behavior). API health: http://localhost:8000/health. Interactive request/response schemas: http://localhost:8000/docs; machine-readable schema: `/openapi.json`.
+Open:
 
-Production frontend verification/start:
+**http://localhost:3000**
 
-```bash
-npm run build --prefix frontend
-npm run start --prefix frontend
-```
+Backend API documentation:
 
-Build/dev scripts use Webpack because Turbopack's CSS subprocess port binding failed in this execution environment. This still runs standard Next.js App Router.
+**http://localhost:8000/docs**
 
-## Environment
+## How to Try the Demo
 
-Backend loads `.env` from the working directory. Always run from the repository root.
+### Successful Negotiation
 
-| Variable | Default/example | Purpose |
-| --- | --- | --- |
-| AI_PROVIDER | ollama | Default for API requests that omit provider; UI explicitly selects its displayed provider |
-| OLLAMA_BASE_URL | http://localhost:11434 | Local model API |
-| OLLAMA_MODEL | qwen2.5:3b | Single shared model |
-| DATABASE_URL | sqlite:///./campusswap.db | SQLite database location |
-| MAX_NEGOTIATION_TURNS | 8 | Total agent turns, hard capped at 8 |
-| APP_ENV | development | Demo identities are disabled outside development |
-| ENABLE_JUDGE_MODE | false | Explicit opt-in to private demo inspector |
-| NEXT_PUBLIC_API_URL | http://localhost:8000 | Frontend `.env.local`; rebuild after changing |
+1. Select a student profile.
+2. Open the TI-84 calculator listing.
+3. Click **Let My AI Negotiate**.
+4. Enter a target price of $15 and a maximum budget of $25.
+5. Select a three-day rental and a pickup window overlapping the seller's availability.
+6. Choose **Real local AI — Ollama / Qwen 2.5 3B**.
+7. Start the negotiation and watch the agents exchange offers.
+8. Review the proposed deal.
+9. Approve as the buyer.
+10. Switch to the seller's profile and approve independently.
 
-The installed local `.env` selects mock for reliable demos. The UI provider picker labels each session. Failed Ollama requests stay in Ollama mode and show retry / explicit switch-to-mock buttons.
+The deal is confirmed only after both approvals.
 
-## Ollama
+### Conflicting Schedule
 
-If missing on your Mac, install with `brew install ollama`. Do not run a second server if the Ollama desktop app is already serving port 11434.
+Repeat the process with the buyer's pickup window set to:
 
-```bash
-OLLAMA_NUM_PARALLEL=1 OLLAMA_MAX_LOADED_MODELS=1 ollama serve
-```
+- October 28, 2026, 9:00 AM
+- October 28, 2026, 10:00 AM
 
-In another terminal:
+The seller's existing availability is 4:00–8:00 PM.
 
-```bash
-ollama pull qwen2.5:3b
-curl http://localhost:11434/api/tags
-curl http://localhost:11434/api/generate -d '{"model":"qwen2.5:3b","prompt":"Reply with hello","stream":false,"options":{"num_predict":20}}'
-```
+The system should display a no-agreement result because the schedules do not overlap.
 
-Then select **Real local AI · Ollama / Qwen 2.5 3B** in the buyer form. Agent calls are sequential and use the same loaded model. Keep memory-heavy applications closed on an 8 GB Mac. See `docs/VERIFICATION.md` for the actual installed model and inference verification status.
+*Note: Seeded listing dates depend on when the database was first initialized. Use the dates shown on the listing if they differ from this example.*
 
-## Successful demo
+## Privacy and Safety
 
-1. Select **Abbhijit** in the navbar, then open **TI-84 Plus CE Graphing Calculator** (owned by Shorya Moses) → **Let My AI Negotiate**.
-2. Keep target $15, private maximum $25, three days, the seeded Wednesday pickup window, Friday deadline, Hayden Library, and mock provider.
-3. Start. Buyer offers $15; seller computes a counter from its own asking price; buyer concedes; seller accepts compatible terms. The normal seed currently reaches $20 through four independent turns. The outcome is calculated, not a hardcoded deal.
-4. Observe Wednesday 5 PM Arizona pickup and Saturday return. With this initial seed: October 28 and October 31, 2026.
-5. Approve as Abbhijit. The deal remains pending. Switch to Shorya Moses with the button or top-right student selector, then approve as Shorya Moses. Only now does it show **Confirmed**.
-6. Open **My negotiations** or reload the session URL to inspect persisted public messages and status.
+SwApStEr separates private preferences from shared negotiation terms.
 
-A student's maximum/minimum never appears in the normal session GET response. The buyer's own submitted form data is naturally visible to that buyer's browser; it is never sent to the seller agent. The demo identity selector is intentionally open to hackathon participants and is not real authentication.
+- Buyer maximum budgets are not disclosed to the seller agent.
+- Seller minimum prices are not disclosed to the buyer agent.
+- Only public offers and relevant terms are exchanged.
+- Invalid prices and incompatible pickup schedules are blocked.
+- Rental duration and item availability are validated.
+- Negotiations are capped at eight turns.
+- Both students must approve before confirmation.
+- No payments are processed.
 
-## Dynamic student profiles and safe upgrade
+Demo student switching is intended for local hackathon testing and is not production authentication.
 
-Choose a student in the navbar, or choose **+ Create student profile** to create and immediately select a new one. Names, initials, listing ownership, agent labels, histories, and approval controls come from persisted profile IDs. Refresh preserves the selected profile via a 30-day HttpOnly demo cookie. **My listings** filters to the active student. All profiles can both buy and sell; initial role hints do not restrict actions.
+## AI Architecture
 
-When buying, the active student is the buyer and the listing owner is the seller. Self-negotiation is blocked by the backend. Only those two IDs may inspect, advance, or approve their negotiation. Switching to Oumar or another unrelated student clears the conversation and refreshes history; spoofed names/roles do not authorize approvals. To approve as the other participant, use the review switch button or select their profile.
+The application uses separate buyer and seller agent modules.
 
-The additive `dynamic_students_v1` migration runs once at backend startup. It backs up an existing database into ignored `backups/`, preserves legacy `student-a` / `student-b` IDs and all associated records/approval keys, renames only the known original demo display names, and adds Oumar. User-created names and data are retained. A unique student-ID index and a migration marker make subsequent starts idempotent. Existing listing/negotiation display names resolve from profiles without rewriting their historical records. See `docs/MIGRATION.md` for the preservation audit.
+Each agent receives its own private context, the public listing details, and relevant shared negotiation history.
 
-To reproduce the requested multi-user demo: select Shorya Moses → list a calculator for $35 with a private $20 minimum → select Abbhijit → open it and submit $15/$25 preferences with Ollama → review and approve → switch to Shorya and approve. Oumar cannot approve that deal, but can start an independent one. A fourth profile can create listings and negotiate immediately with no code changes.
+Ollama generates structured negotiation decisions. The backend validates these decisions before they are accepted into the conversation.
 
-## Two-student approval demo
+Natural-language messages are generated from the validated public terms, with safeguards against misleading or unsupported claims.
 
-Agents propose the terms; each student independently chooses **Approve Deal** or **Reject Deal**. One approval stays pending and shows who is still required. Both approvals confirm the deal. Either rejection closes the proposal permanently.
+A deterministic mock provider is also available as an explicitly selected demonstration fallback.
 
-For the two-window demo, use regular Chrome as Abbhijit and a separate Incognito session as Shorya Moses. Regular tabs share the active-profile cookie. The seller finds the proposal through **My negotiations**, identified by its deal number, or opens the buyer's copied negotiation link after selecting their own profile. A link grants no access and never changes identity. Both visible proposal views refresh approval state every 2.5 seconds; hidden tabs pause and refresh when restored.
+The negotiation engine and the safety-validation layer serve different purposes: **AI proposes and negotiates; backend rules enforce boundaries.**
 
-See [the complete two-student demo instructions](docs/TWO-STUDENT-APPROVALS.md). Existing profiles, negotiations, and private constraints are preserved.
+## Testing and Verification
 
-## Failed demo
+Verified during development:
 
-Select **TI-Nspire CX II · premium rental**. Keep target $15 and maximum $25. Its seller minimum is $50. Agents exchange up to eight price offers within their respective boundaries and finish **No agreement — incompatible price constraints.** No agreement or approval controls are created. You can also test non-overlapping pickup windows or an incompatible rental duration.
+- **67 backend tests passed.**
+- TypeScript type checking passed.
+- Real Ollama Playwright end-to-end test passed.
+- Successful real-AI negotiation manually demonstrated.
+- Independent buyer and seller approvals verified.
+- Incompatible pickup schedules manually tested and correctly rejected.
 
-## Judge Mode
-
-Set `ENABLE_JUDGE_MODE=true` in `.env`, keep `APP_ENV=development`, restart the backend, and click **Inspect Judge Mode**. It shows both private contexts, public decisions, terms, and approvals. The route checks loopback access and environment. Set it back to false for ordinary student demonstrations. `APP_ENV=production` disables demo authentication and Judge Mode; this project needs real campus authentication before deployment.
-
-## API
-
-| Method | Endpoint | Behavior |
-| --- | --- | --- |
-| GET | /health | Readiness |
-| GET | /listings, /listings/{id} | Public listings without private minimum |
-| POST | /listings | Seller session required; validated listing including private minimum |
-| GET | /students, /students/{id} | Public demo profile metadata; stable student IDs |
-| POST | /students | Create profile: display_name, optional university, optional course_or_major |
-| POST | /demo/session | Select any existing student by stable ID; sets opaque HttpOnly cookie |
-| GET | /demo/session | Current server-resolved demo student |
-| POST | /negotiations | Buyer preferences; returns public session, HTTP 201 |
-| GET | /negotiations | Current participant's saved history |
-| GET | /negotiations/{id} | Public transcript, terms, status, approvals |
-| POST | /negotiations/{id}/advance | `{ "version": 0 }`; one independent turn, stale versions return 409 |
-| POST | /negotiations/{id}/approve | `{ "decision": "approve" }` or `reject`; actor derives from cookie |
-| POST | /negotiations/{id}/mock | Explicit switch for a still-open session |
-| GET | /demo/judge/{id} | Opt-in, local development-only private inspector |
-
-Datetime values must include a timezone. Prices accept exact decimal strings, with at most two fractional digits. Common statuses are Negotiating, Agreement proposed, Awaiting approvals, Confirmed, Rejected, and No agreement. Unknown resources return 404, missing sessions 401, wrong identities 403, stale/closed actions 409, invalid inputs 422. Full body schemas are generated in FastAPI docs.
-
-## Tests
-
-Latest approval-flow verification: 30 backend tests and all 10 distinct Chrome regression cases passed across the suite and targeted reruns, including real seeded TI-84 negotiation with independent buyer/seller sessions. TypeScript and production build passed. See `docs/TWO-STUDENT-APPROVALS.md` for exact results, the blocked initial model trial, and preservation checks. Earlier verification is retained in `docs/RESUME-VERIFICATION.md`.
+Run backend tests:
 
 ```bash
-.venv/bin/python -m pytest -q
-npm run build --prefix frontend
-npm run typecheck --prefix frontend
+.venv/bin/python -m pytest backend/tests -q
 ```
 
-Browser tests require both servers running, the initial seed listings, and Google Chrome installed at the standard macOS path:
+Run TypeScript checking:
+
+```bash
+cd frontend
+npx tsc --noEmit
+```
+
+Run browser tests:
 
 ```bash
 npm run test:e2e --prefix frontend
 ```
 
-To run the optional full real-model browser test:
+Run the optional real-Ollama browser test from the frontend directory:
 
 ```bash
-RUN_OLLAMA_E2E=1 npm run test:e2e --prefix frontend -- ollama.spec.ts
-.venv/bin/python scripts/verify_live.py --provider ollama
+RUN_OLLAMA_E2E=1 npx playwright test tests/ollama.spec.ts --workers=1
 ```
 
-Playwright uses existing Chrome with extensions disabled; no additional browser download is needed. The hydration test monitors hydration-related console messages and browser page errors while selecting and reloading profiles. It checks marketplace filtering/search, a complete dual-approval negotiation, persisted history/reload, incompatible prices, mobile overflow, and seller listing persistence. The seller test creates a uniquely named listing. Use a fresh disposable DATABASE_URL when you want a clean demo database. Configure `frontend/playwright.config.ts` for another browser/OS. Pytest always uses a separate temporary SQLite database.
+The real-model test requires Ollama and the application servers to be running.
 
-## Architecture and folder structure
+## Key Features
 
-```text
-campus-swap-ai/
-├── .env.example
-├── .gitignore
-├── README.md
-├── backend/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── requirements.lock.txt
-│   ├── agents/
-│   │   ├── __init__.py
-│   │   ├── provider.py
-│   │   ├── buyer_agent.py
-│   │   ├── seller_agent.py
-│   │   ├── mock_provider.py
-│   │   ├── ollama_provider.py
-│   │   └── negotiation_coordinator.py
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── database.py
-│   │   └── schemas.py
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   └── negotiations.py
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── store.py
-│   │   └── students.py
-│   └── tests/
-│       ├── conftest.py
-│       ├── test_basic.py
-│       ├── test_negotiation.py
-│       ├── test_students.py
-│       └── test_approvals.py
-├── frontend/
-│   ├── .env.example
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── tests/demo.spec.ts
-│   ├── tests/ollama.spec.ts
-│   ├── tests/profiles.spec.ts
-│   ├── tests/profile-helpers.ts
-│   ├── tests/hydration.spec.ts
-│   ├── tests/approvals.spec.ts
-│   ├── playwright.config.ts
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── postcss.config.mjs
-│   ├── tsconfig.json
-│   └── next-env.d.ts
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── VERIFICATION.md
-│   ├── MIGRATION.md
-│   ├── RESUME-VERIFICATION.md
-│   └── TWO-STUDENT-APPROVALS.md
-└── scripts/
-    ├── start.sh
-    └── verify_live.py
-```
+- Student marketplace for buying, selling, and renting.
+- Searchable academic listings.
+- Dynamic student profiles.
+- Private buyer and seller preferences.
+- Independent AI negotiation agents.
+- Real-time negotiation progress.
+- Structured offer validation.
+- Scheduling conflict detection.
+- Rental return-date calculation.
+- Independent two-student approvals.
+- Persistent negotiation history.
+- Real local Ollama inference.
+- Optional deterministic mock mode.
+- Local development Judge Mode.
 
-Generated local `.venv`, `.env`, `frontend/.env.local`, database, dependencies, build output, model data, and test artifacts are ignored. See `docs/ARCHITECTURE.md` for context isolation, state transitions, provider contracts, and storage decisions.
+## Current Limitations
 
-## Troubleshooting and limitations
+SwApStEr is a working hackathon prototype, not a production marketplace.
 
-- Connection refused: start backend/frontend from the root; check ports 8000 and 3000.
-- CORS/cookies: visit `http://localhost:3000`, and keep API URL `http://localhost:8000`; switching between 127.0.0.1 and localhost creates different cookie hosts.
-- Ollama connection failure: start Ollama, inspect `/api/tags`, then retry. Mock mode is an explicit user choice.
-- Agent invalid terms: the server blocks the action. Retry, explicitly switch provider, or restart. Two invalid actions close the negotiation safely.
-- Demo dates grow stale in a long-lived database. Use a fresh database or list a new item with current dates.
-- Run one backend worker. In-process locks do not coordinate multiple processes. Normalized tables, transactions across workers, real authentication, moderation, and reservation/inventory locking are future production work.
-- No payment, chat between humans, image uploads, notifications, or campus SSO. Seeded listings belong to Shorya Moses; new listings belong to the active student. Profiles have no fixed role restrictions. Dates and exact rental durations are negotiated; restrictions are displayed text, while enforceable rules are represented by structured fields.
-- Prices/terms come from provider actions; public text is safely rendered from those structured decisions. This prevents accidental private-prompt disclosure and keeps both providers consistent.
-- The frontend uses one App Router page with working views/dialogs and persisted negotiation URLs rather than seven separate route files.
+It does not currently include real university single sign-on, payment processing, inventory reservation locking, or production-grade account authentication.
 
-## Three-developer collaboration
+Future improvements could include verified university identities, notifications, campus calendar integration, and secure transaction processing.
 
-Stable boundaries: `Provider.decide(context) -> Action`; agent context builders; validated API schemas; public session response. Keep those contracts stable while working independently.
+## Our Vision
 
-1. Developer 1: `backend/agents/` — model prompt quality, negotiation strategies, provider tests.
-2. Developer 2: `frontend/` — accessibility, component extraction, more browser coverage and polish.
-3. Developer 3: `backend/routes/`, `models/`, `services/` — authentication, normalized persistence, transactional locking and API tests.
+We want students to spend less time negotiating and coordinating logistics and more time focusing on campus life.
 
-This workspace initially had no Git repository. To commit the verified foundation yourself:
+SwApStEr demonstrates how personal AI agents can work together while protecting individual preferences and keeping humans in control.
 
-```bash
-git init
-git add .gitignore .env.example README.md backend frontend docs scripts
-git status --short
-git commit -m "Build CampusSwap AI end-to-end demo"
-git branch feature/agents
-git branch feature/website
-git branch feature/api
-```
+**Two students. Two AI agents. One better deal.**
 
-Each teammate should use a separate clone/worktree and `git switch` to their assigned branch. Review `git status` before committing; ignored env files, SQLite data and dependencies must stay out of Git. Add a GitHub remote and push only when the team authorizes it. No GitHub push was performed.
+Built for **Cubbie Hackathon — Track 2: Agent-to-Agent Coordination**.
