@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from backend.models.schemas import Preferences
 from backend.services.students import student_by_id
 from backend.services.store import get, save, all_records, public_listing
-from backend.agents.negotiation_coordinator import advance, public
+from backend.agents.negotiation_coordinator import advance, public, valid_proposal
+from backend.services.audit import record_event
 router=APIRouter()
 LOCKS=defaultdict(threading.Lock)
 
@@ -39,10 +40,14 @@ def switch(body:Student,response:Response):
 @router.get('/demo/session')
 def who(student=Depends(identity)): return {'student':student,'profile':student_by_id(student)}
 
-def authorized(id,student):
+def authorized(id,student,audit_action=None):
     n=get('negotiation',id)
     if not n: raise HTTPException(404,'Negotiation not found')
-    if student not in (n['buyer_id'],n['seller_id']): raise HTTPException(403,'Not a participant')
+    if student not in (n['buyer_id'],n['seller_id']):
+        if audit_action:
+            record_event(n,'constraint_violation',role='coordinator',action=audit_action,result='rejected',reason='unauthorized_participant')
+            save('negotiation',n,id)
+        raise HTTPException(403,'Not a participant')
     return n
 @router.post('/negotiations',status_code=201)
 def start(body:Preferences,student=Depends(identity)):
@@ -68,21 +73,38 @@ def next_turn(id:int,body:Advance,student=Depends(identity)):
     if not lock.acquire(blocking=False): raise HTTPException(409,'An agent is already thinking')
     try:
         n=authorized(id,student)
-        if n['version']!=body.version: raise HTTPException(409,'This turn has already advanced')
+        if n['version']!=body.version:
+            record_event(n,'constraint_violation',role='coordinator',action='DECIDE',result='rejected',reason='stale_version')
+            save('negotiation',n,id)
+            raise HTTPException(409,'This turn has already advanced')
         return public(advance(n))
     finally: lock.release()
 class Approval(BaseModel): decision:Literal['approve','reject']
 @router.post('/negotiations/{id}/approve')
 def approve(id:int,body:Approval,student=Depends(identity)):
     with LOCKS[id]:
-        n=authorized(id,student)
-        if n['status']!='Awaiting approvals': raise HTTPException(409,'This deal is not awaiting approvals')
-        if n['approvals'][student]: raise HTTPException(409,'You already approved this deal')
+        action='APPROVE' if body.decision=='approve' else 'REJECT_DEAL'
+        n=authorized(id,student,audit_action=action)
+        role='buyer' if student==n['buyer_id'] else 'seller'
+        def deny(reason,message):
+            record_event(n,'constraint_violation',role=role,action=action,result='rejected',reason=reason)
+            save('negotiation',n,id)
+            raise HTTPException(409,message)
+        if n['status']!='Awaiting approvals':
+            deny('invalid_state','This deal is not awaiting approvals')
+        if not valid_proposal(n):
+            deny('invalid_proposal','This proposal is invalid or no longer compatible')
+        if n['approvals'][student]:
+            deny('duplicate_approval','You already approved this deal')
         if body.decision=='reject':
             n.update(status='Rejected',rejected_by=student,rejected_at=datetime.now(timezone.utc).isoformat())
+            record_event(n,'offer_rejected',role=role,action=action,result='valid',reason='student_rejected')
         else:
             n['approvals'][student]=True
-            if all(n['approvals'].get(id,False) for id in (n['buyer_id'],n['seller_id'])): n['status']='Confirmed'
+            record_event(n,'approval_recorded',role=role,action=action,result='valid')
+            if all(n['approvals'].get(id,False) for id in (n['buyer_id'],n['seller_id'])):
+                n['status']='Confirmed'
+                record_event(n,'agreement_finalized',role='coordinator',action='FINALIZE',result='valid',public_price=n['agreement']['price'])
         n['version']+=1
         return public(save('negotiation',n,id))
 @router.post('/negotiations/{id}/mock')
@@ -95,6 +117,7 @@ def switch_mock(id:int,student=Depends(identity)):
 @router.get('/demo/judge/{id}')
 def judge(id:int,request:Request,student=Depends(identity)):
     demo_only()
+    if os.getenv('APP_ENV','development')!='development': raise HTTPException(403,'Judge mode is development only')
     if request.client.host not in ('127.0.0.1','::1','testclient'): raise HTTPException(403,'Judge mode is loopback only')
     if os.getenv('ENABLE_JUDGE_MODE','false').lower()!='true': raise HTTPException(403,'Judge mode disabled')
     n=authorized(id,student)
