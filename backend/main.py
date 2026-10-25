@@ -5,7 +5,7 @@ from backend.services.store import seed, all_records, get, save, public_listing
 from backend.models.schemas import Listing, StudentCreate
 from backend.services.students import students, student_by_id, create_student
 from backend.routes.negotiations import demo_only
-app = FastAPI(title='CampusSwap AI')
+app = FastAPI(title="SwApStEr")
 app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:3000'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
 seed()
 @app.get('/health')

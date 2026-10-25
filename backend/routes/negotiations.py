@@ -12,7 +12,11 @@ router=APIRouter()
 LOCKS=defaultdict(threading.Lock)
 
 def demo_only():
-    if os.getenv('APP_ENV','development')!='development': raise HTTPException(403,'Demo identity and judge features are disabled')
+    if os.getenv('APP_ENV', 'development') == 'development':
+        return
+    if os.getenv('PUBLIC_DEMO_MODE', 'false').lower() == 'true':
+        return
+    raise HTTPException(403, 'Demo features are disabled')
 
 def identity(request:Request):
     demo_only()
