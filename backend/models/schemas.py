@@ -49,6 +49,7 @@ class Terms(BaseModel):
     location: str
     rental_days: int
 class Action(BaseModel):
+    message: Optional[str] = Field(default=None, max_length=400)
     action: Literal['OFFER', 'COUNTER', 'ACCEPT', 'REJECT']
     terms: Optional[Terms] = None
 
