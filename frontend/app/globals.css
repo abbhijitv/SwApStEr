@@ -348,3 +348,22 @@ textarea:focus-visible {
   .coordination-step strong { font-size: 11px; }
   .coordination-step small { font-size: 10px; }
 }
+
+.housing-dates{font-size:12px;color:#646075;margin:12px 0}.housing-facts{background:#f6f4fc;padding:16px;border-radius:12px;margin:16px 0}.housing-facts p{margin:8px 0}.housing-disclaimer{font-size:12px;line-height:1.6;color:#635d76;background:#f6f4fc;padding:12px;border-radius:10px}.filters{flex-wrap:wrap}
+
+
+
+/* Local illustrative photography; dimensions are reserved before images load. */
+.item-art.listing-photo{position:relative;isolation:isolate;height:auto;aspect-ratio:4/3;overflow:hidden;background:#eeedf3;border-radius:inherit}
+.listing-photo img{object-fit:cover;object-position:center;opacity:0;transition:opacity .25s ease,transform .45s ease}
+.listing-photo.photo-loaded img{opacity:1}
+.item-card:hover .listing-photo img{transform:scale(1.035)}
+.illustrative-label{position:absolute;z-index:1;bottom:9px;left:10px;padding:4px 7px;border:1px solid #ffffff55;border-radius:5px;background:#22232bba;color:#fff;font-size:9px;line-height:1.3;font-weight:500;text-decoration:none}
+.listing-photo.small .illustrative-label{font-size:8px;bottom:6px;left:6px;padding:3px 5px}
+.photo-fallback{height:100%;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:15px;color:#79718d;background:linear-gradient(145deg,#eeebf5,#e7edf0);font-size:12px;text-align:center}
+.summary .listing-photo.small{aspect-ratio:4/3;height:auto;border-radius:9px}
+.modal>.listing-photo{height:auto;aspect-ratio:4/3;border-radius:0}
+@media(max-width:760px){.illustrative-label{font-size:8px;bottom:7px;left:7px}.summary .listing-photo.small{height:110px;aspect-ratio:auto}.listing-photo.small .illustrative-label{font-size:7px;left:3px;bottom:4px;max-width:calc(100% - 6px);padding:3px 4px}.photo-fallback{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.listing-photo img{transition:none}.item-card:hover .listing-photo img{transform:none}}
+
+.illustrative-label:focus-visible{outline:2px solid white;outline-offset:2px}

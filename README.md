@@ -320,3 +320,7 @@ SwApStEr demonstrates how personal AI agents can work together while protecting 
 **Two students. Two AI agents. One better deal.**
 
 Built for **Cubbie Hackathon — Track 2: Agent-to-Agent Coordination**.
+
+## Campus housing and subleases
+
+The existing marketplace also supports apartment subleases, private room subleases, and room rentals. Housing listings use monthly rent, complete lease dates, optional move-in flexibility, and the same independent agents and two-student approval flow. [Housing demo instructions](HOUSING_DEMO.md) include successful and failed scenarios, data compatibility, and limitations. Mutually accepted student terms remain subject to landlord/property-manager approval and applicable lease restrictions.

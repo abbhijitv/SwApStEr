@@ -59,10 +59,24 @@ class OllamaProvider:
           'Prefer a sensible agreement to endless counters; reject only when further progress is impossible. '+
           ('This is a PURCHASE. Keep rental_days from suggested_terms only for API compatibility; it does not describe a rental. ' if context.get('listing',{}).get('type')=='Buy' else 'This is a RENTAL; retain the requested rental duration. ')+
           'Allowed actions: '+', '.join(allowed)+'. Context: '+json.dumps(context))
+        if context.get('listing',{}).get('housing'):
+            prompt += ' HOUSING: price is MONTHLY RENT. You represent a student offering housing or seeking housing, not a landlord. Copy transaction=housing, lease_start, lease_end and location from suggested_terms. Never include pickup or rental_days. Dates must cover the required stay. '
         schema=Action.model_json_schema()
         schema['properties'].pop('message',None)
         schema['properties']['action']['enum']=allowed
         schema['$defs']['Terms']['properties']['price']={'type':'number','minimum':float(floor),'maximum':float(ceiling)}
+        if context.get('listing',{}).get('housing'):
+            props=schema['$defs']['Terms']['properties']
+            for key in ('pickup','rental_days'): props.pop(key,None)
+            props['transaction']={'const':'housing'}
+            for key in ('lease_start','lease_end'): props[key]={'type':'string','format':'date'}
+            schema['$defs']['Terms']['required']=['price','location','transaction','lease_start','lease_end']
+        else:
+            props=schema['$defs']['Terms']['properties']
+            for key in ('transaction','lease_start','lease_end'): props.pop(key,None)
+            props['pickup']={'type':'string','format':'date-time'}
+            props['rental_days']={'type':'integer'}
+            schema['$defs']['Terms']['required']=['price','pickup','location','rental_days']
         with INFERENCE_LOCK:
             action=None
             for attempt in range(2):
@@ -159,6 +173,8 @@ class OllamaProvider:
             + 'Return a JSON object containing only the key message. '
             'Public context: ' + json.dumps(context)
         )
+        if context['item'].get('housing'):
+            instructions=('Write a friendly student housing negotiation reply for this validated action. Use {price}/month, {lease_start}, {lease_end}, {location} tokens only for facts. Never use pickup, duration, raw dates, budgets, or private limits. ACCEPT means both students still need to approve; never claim an executed or signed lease. Return JSON with message. Public context: '+json.dumps(context))
         schema={'type':'object','properties':{'message':{'type':'string'}},'required':['message'],'additionalProperties':False}
         prompt=instructions
         with INFERENCE_LOCK:

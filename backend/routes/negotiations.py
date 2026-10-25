@@ -54,7 +54,8 @@ def start(body:Preferences,student=Depends(identity)):
     l=get('listing',body.listing_id)
     if not l: raise HTTPException(404,'Listing not found')
     if student==l['seller_id']: raise HTTPException(403,'You cannot negotiate on your own listing')
-    if body.deadline<=datetime.now(timezone.utc): raise HTTPException(422,'Academic deadline must be in the future')
+    if bool(l.get('housing')) != bool(body.housing): raise HTTPException(422,'Use preferences matching the listing type')
+    if not body.housing and body.deadline<=datetime.now(timezone.utc): raise HTTPException(422,'Academic deadline must be in the future')
     n=save('negotiation',{'listing_id':l['id'],'item':public_listing(l),'buyer':student_by_id(student)['display_name'],'seller':student_by_id(l['seller_id'])['display_name'],
       'buyer_id':student,'seller_id':l['seller_id'],'preferences':body.model_dump(mode='json'),
       'provider':body.provider,'status':'Negotiating','messages':[],'offer':None,'agreement':None,

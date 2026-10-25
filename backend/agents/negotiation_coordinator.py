@@ -9,6 +9,7 @@ from backend.services.store import get, save, public_listing
 from backend.models.schemas import Terms
 from backend.agents.narration import render_message
 from backend.services.audit import record_event
+from backend.agents import housing
 
 def dt(s):
     parsed=datetime.fromisoformat(s.replace('Z','+00:00'))
@@ -23,6 +24,7 @@ def public(n):
     result['item'] = dict(n['item'], seller=result['seller'])
     return result
 def initial_terms(p,l):
+    if l.get('housing'): return housing.compatible(p,l)
     # A buyer can consult the seller's PUBLIC pickup windows.
     candidates=[]
     for a in p['windows']:
@@ -34,6 +36,7 @@ def initial_terms(p,l):
     return {'price':p['target'],'pickup':min(candidates).isoformat(),'location':p['location'],'rental_days':p['rental_days']} if candidates else None
 
 def valid_terms(t,p,l,role=None):
+    if l.get('housing'): return housing.valid(t,p,l,role)
     price=Decimal(t['price']); pickup=dt(t['pickup'])
     if pickup.tzinfo is None or t['location']!=p['location']: return False
     if role in (None,'buyer'):
@@ -73,6 +76,7 @@ def valid_proposal(n):
         if not all(Terms.model_validate(terms)==agreement for terms in (offer['terms'],accept['terms'],n['offer'])):
             return False
         returned=n['agreement'].get('return_date')
+        if listing.get('housing'): return returned is None
         if listing['type']=='Rent':
             return returned is not None and dt(returned)==agreement.pickup+timedelta(days=agreement.rental_days)
         return returned is None
@@ -90,9 +94,9 @@ def advance(n):
     reason=None
     audit_reason=None
     if not suggested:
-        reason='No agreement — incompatible pickup schedules or academic deadline.'
+        reason='No agreement — incompatible housing dates or preferences.' if l.get('housing') else 'No agreement — incompatible pickup schedules or academic deadline.'
         audit_reason='pickup_incompatible'
-    elif l['type']=='Rent' and p['rental_days']!=l['rental_days']:
+    elif not l.get('housing') and l['type']=='Rent' and p['rental_days']!=l['rental_days']:
         reason='No agreement — incompatible rental duration.'
         audit_reason='rental_duration_incompatible'
     elif not valid_terms(dict(suggested,price=l['price']),p,l,'seller'):
@@ -113,7 +117,7 @@ def advance(n):
         record_event(n,'constraint_violation',role=role,action='DECIDE',result='failed',reason='provider_error',turn=n['turn']+1)
         return save('negotiation',n,n['id'])
     n['error']=None
-    t=action.terms.model_dump(mode='json') if action.terms else None
+    t=action.terms.model_dump(mode='json',exclude_none=True,exclude_defaults=True) if action.terms else None
     invalid = action.action!='REJECT' and (not t or not valid_terms(t,p,l,role))
     if action.action in ('COUNTER','ACCEPT') and not n['offer']: invalid=True
     if action.action=='OFFER' and n['offer']: invalid=True
@@ -140,7 +144,7 @@ def advance(n):
     narration_source='mock'
     if n['provider']=='ollama':
         public_context={'role':role,'action':action.action,'terms':t,'previous_offer':n['offer'],
-          'item':{'title':l['title'],'type':l['type'],'category':l['category']},
+          'item':{'title':l['title'],'type':l['type'],'category':l['category'],'housing':bool(l.get('housing'))},
           'conversation':[{'role':m['role'],'text':m['text'],'terms':m.get('terms')} for m in n['messages'][-4:]]}
         action.message,narration_source=provider.narrate(public_context)
     try:
@@ -153,7 +157,7 @@ def advance(n):
         if not valid_terms(t,p,l):
             n.update(status='No agreement',reason='No agreement — incompatible price constraints.' if Decimal(p['maximum'])<Decimal(l['minimum']) else 'No agreement — incompatible terms.')
         else:
-            n.update(status='Agreement proposed',agreement=dict(t,return_date=(dt(t['pickup'])+timedelta(days=t['rental_days'])).isoformat() if l['type']=='Rent' else None))
+            n.update(status='Agreement proposed',agreement=dict(t,return_date=(dt(t['pickup'])+timedelta(days=t['rental_days'])).isoformat() if l['type']=='Rent' and not l.get('housing') else None))
     elif action.action=='REJECT':
         n.update(status='No agreement',reason='No agreement — agent declined the terms.')
     else:

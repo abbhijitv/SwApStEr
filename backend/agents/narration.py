@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 class NarrationError(ValueError):
     pass
 
-TOKENS={'price','previous_price','duration','pickup','location'}
+TOKENS={'price','previous_price','duration','pickup','location','lease_start','lease_end'}
 PRIVATE_WORDS=re.compile(r'\b(maximum|minimum|reservation|private|secret|ceiling|floor|prompt|instructions|limit)\b',re.I)
 
 NUMBER_WORDS={'zero':0,'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,'eighty':80,'ninety':90}
@@ -31,6 +31,9 @@ def bind_public_facts(message,terms,previous=None):
         return '{duration}'
     numbers='|'.join(NUMBER_WORDS)
     message=re.sub(r'\b(\d+|(?:'+numbers+r')(?:[ -](?:'+numbers+r'))?)\s*[- ]\s*days?\b',duration,message,flags=re.I)
+    if terms.get('transaction')=='housing':
+        message=re.sub(re.escape(terms['location']),'{location}',message,flags=re.I)
+        return message
     pickup=datetime.fromisoformat(terms['pickup'].replace('Z','+00:00')).astimezone(ZoneInfo('America/Phoenix'))
     day=pickup.strftime('%A');hour=pickup.strftime('%-I');period=pickup.strftime('%p')
     minute=pickup.strftime('%M');time=hour+(r'(?::00)?' if minute=='00' else ':'+minute)+r'\s*'+period
@@ -47,7 +50,7 @@ def validate_message(message,action):
     tokens=set(re.findall(r'\{([^{}]+)\}',message))
     if tokens-TOKENS or message.count('{')!=message.count('}'):
         raise NarrationError('Use only {price}, {previous_price}, {duration}, {pickup}, {location} fact tokens.')
-    stripped=re.sub(r'\{(?:price|previous_price|duration|pickup|location)\}','',message)
+    stripped=re.sub(r'\{(?:price|previous_price|duration|pickup|location|lease_start|lease_end)\}','',message)
     if re.search(r'[\d$£€{}]',stripped) or PRIVATE_WORDS.search(stripped):
         raise NarrationError('Do not write raw numbers, money, or confidential-limit language. Use fact tokens.')
     # Reject spelled-out numeric claims too; facts must come from the structured terms.
@@ -64,6 +67,17 @@ def render_message(message,action,terms,previous=None):
     if not terms:
         if re.search(r'\{',text):raise NarrationError('A rejection without terms cannot quote terms.')
         return text
+    if terms.get('transaction')=='housing':
+        if action!='REJECT' and not re.search(r'\{price\}\s*(?:/month|per month)',text,re.I): raise NarrationError('Housing uses {price}/month.')
+        if re.search(r'\b(signed|executed|binding|landlord approved)\b',text,re.I): raise NarrationError('Housing terms are only a student proposal.')
+        from decimal import Decimal
+        facts={'price':f"${Decimal(terms['price']):,.2f}".removesuffix('.00'), 'location':terms['location'],
+               'lease_start':terms['lease_start'],'lease_end':terms['lease_end']}
+        if previous: facts['previous_price']=f"${Decimal(previous['price']):,.2f}".removesuffix('.00')
+        if any(token in text for token in ('{pickup}', '{duration}')): raise NarrationError('Housing uses lease dates and monthly rent.')
+        for key,value in facts.items(): text=text.replace('{'+key+'}',value)
+        return text
+    if '{lease_start}' in text or '{lease_end}' in text: raise NarrationError('Item transactions do not have lease dates.')
     pickup=datetime.fromisoformat(terms['pickup'].replace('Z','+00:00')).astimezone(ZoneInfo('America/Phoenix'))
     from decimal import Decimal
     price=Decimal(terms['price'])
@@ -79,8 +93,13 @@ def validate_narration(message,context):
     """Validate language against only the already-approved public facts and conversation."""
     text=bind_public_facts(message,context['terms'],context.get('previous_offer'))
     text=validate_message(text,context['action'])
+    housing=bool(context['item'].get('housing'))
+    if housing:
+        if context['action']!='REJECT' and not re.search(r'\{price\}\s*(?:/month|per month)',text,re.I): raise NarrationError('Use {price}/month for monthly rent.')
+        if re.search(r'\b(pickup|per day|signed|executed|binding|landlord approved)\b',text,re.I): raise NarrationError('Housing terms remain a student proposal, not an executed lease.')
+        render_message(text,context['action'],context['terms'],context.get('previous_offer'))
     purchase=context['item']['type']=='Buy'
-    if not purchase and re.search(
+    if not housing and not purchase and re.search(
         r'(?:\{price\}|\{previous_price\})\s*(?:/|per\s+)(?:day|night|week|month)\b',
         text,re.I
     ):
@@ -90,15 +109,15 @@ def validate_narration(message,context):
         text,re.I
     ):
         raise NarrationError('Seller provides the listed meetup spot; seller must not claim to pick up the item.')
-    if purchase and (re.search(r'\b(rent|rental|renting|return|duration|days?|per.book|per.day)\b',text,re.I) or '{duration}' in text):
+    if not housing and purchase and (re.search(r'\b(rent|rental|renting|return|duration|days?|per.book|per.day)\b',text,re.I) or '{duration}' in text):
         raise NarrationError('Purchase wording cannot describe rental duration, a return date, or a rate.')
-    if not purchase and re.search(r'\b(buy|buying|purchase|per.book)\b',text,re.I):
+    if not housing and not purchase and re.search(r'\b(buy|buying|purchase|per.book)\b',text,re.I):
         raise NarrationError('Rental wording cannot describe a purchase.')
     if not context['conversation'] and re.search(r'\b(your (?:counter)?offer|counteroffer|thanks for (?:the|your) offer|same (?:duration|pickup)|meeting me halfway)\b',text,re.I):
         raise NarrationError('Opening message cannot acknowledge a previous offer or agreement.')
     if context['action']=='ACCEPT' and re.search(r'\b(could|would) you\b',text,re.I):
         raise NarrationError('Acceptance should accept the outstanding offer, not propose a new counter.')
-    if context['action'] in ('OFFER','COUNTER') and re.search(r'\b(that works|i accept|we accept|we agree|agreed)\b',text,re.I):
+    if context['action'] in ('OFFER','COUNTER') and re.search(r'\b(that works|i accept|we accept|we agree|agreed|is accepted)\b',text,re.I):
         raise NarrationError('An offer or counter must not claim that an agreement has been accepted.')
     if context['action']=='OFFER' and re.search(r'\b(?:priced|listed|costs|asking price)\s+(?:at\s+|is\s+|for\s+)?\{price\}',text,re.I):
         raise NarrationError('Opening message must propose the current price, not claim it is the listed price.')
@@ -115,6 +134,8 @@ def validate_narration(message,context):
 def neutral_message(context):
     """Presentation-only fallback for an action which the coordinator has already validated."""
     action=context['action']
+    if context['item'].get('housing') and action!='REJECT':
+        return '{price}/month for {lease_start} through {lease_end} works for me; both students still need to approve.' if action=='ACCEPT' else 'Would {price}/month work from {lease_start} through {lease_end}?'
     if action=='REJECT':return 'Thanks for discussing it. I do not think these terms will work.'
     if action=='ACCEPT':return '{price} works for me. Let’s send the proposal to our students for approval.'
     if action=='COUNTER':return 'Thanks for the offer. Could we meet at {price}?'
