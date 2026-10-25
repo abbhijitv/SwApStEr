@@ -3,7 +3,7 @@ import {selectProfile} from './profile-helpers';
 test('clear product journey, explicit demo switch, and confirmed-deal navigation',async({page})=>{
  await page.goto('/');await selectProfile(page,'Abbhijit');
  await expect(page.getByRole('heading',{name:'Your campus.'})).toBeVisible();
- await expect(page.getByRole('region',{name:'How CampusSwap works'}).locator('h3')).toHaveCount(4);
+ await expect(page.getByRole('region',{name:'How SwApStEr works'}).locator('h3')).toHaveCount(4);
  await page.getByRole('button',{name:'Explore Marketplace',exact:true}).click();
  await expect(page.getByRole('textbox',{name:'Search marketplace'})).toBeInViewport();
  await page.getByRole('button',{name:'See AI Negotiation Demo',exact:true}).click();

@@ -173,9 +173,8 @@ def test_ollama_repairs_own_price_violation(monkeypatch):
         return R({'action':'COUNTER','terms':{'price':next(replies),'pickup':'2026-10-28T17:00:00-07:00','location':'Hayden Library','rental_days':3}})
     monkeypatch.setattr('httpx.post',fake)
     a=OllamaProvider().decide({'role':'seller','own_turn':1,'last_offer':{'price':'15','pickup':'2026-10-28T17:00:00-07:00','location':'Hayden Library','rental_days':3},'private':{'minimum':'20','price':'35'}})
-    assert a.terms.price==20 and len(prompts)==3
+    assert a.terms.price==20 and len(prompts)==2 and a.message is None
     assert 'Correction' in prompts[1]
-    assert 'minimum' not in prompts[-1] and 'private' not in prompts[-1]
 
 def test_proposal_state_precedes_approvals(c):
     n=start(c)

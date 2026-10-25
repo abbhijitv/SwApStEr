@@ -8,6 +8,8 @@ class MockProvider:
         buyer = c['role']=='buyer'
         low = Decimal(own.get('minimum', own.get('target', '0')))
         high = Decimal(own.get('maximum', own.get('price', '0')))
+        if buyer and c.get('listing',{}).get('price') is not None:
+            high=min(high,Decimal(c['listing']['price']));low=min(low,high)
         if last:
             p=Decimal(last['price'])
             acceptable = p<=min(high,low+Decimal(n)*Decimal('5')) if buyer else p>=low
@@ -18,8 +20,10 @@ class MockProvider:
             if last: p=min(p,Decimal(last['price']))
         else:
             p=max(low,high-Decimal(n+1)*Decimal('10'))
+        purchase=c.get('listing',{}).get('type')=='Buy'
         terms=dict(c['suggested_terms'],price=str(p))
         message=('Hey! Would {price} work for {duration}? I can meet at {location} on {pickup}.' if not last else
                  ('Thanks for considering it. Could we meet at {price}? The suggested pickup works for me.' if buyer else
                   'Thanks for the offer! Could you do {price} for {duration}? I can meet at {location}.'))
+        if purchase:message=message.replace('for {duration}', 'for this item')
         return Action(action='COUNTER' if last else 'OFFER',terms=terms,message=message)

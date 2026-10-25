@@ -21,7 +21,12 @@ test('real Ollama TI-84 proposal requires independent buyer and seller approvals
   const proposal=page.getByRole('button',{name:'Approve Deal',exact:true});
   await Promise.race([
    proposal.waitFor({state:'visible',timeout:300000}),
-   page.locator('.error').first().waitFor({state:'visible',timeout:300000}).then(async()=>{throw new Error(await page.locator('.error').first().innerText())})
+   page.getByText(/No agreement —/).first().waitFor({state:'visible',timeout:300000}).then(async()=>{
+     throw new Error('Negotiation ended without agreement: '+await page.getByText(/No agreement —/).first().innerText());
+   }),
+   page.locator('.error').first().waitFor({state:'visible',timeout:300000}).then(async()=>{
+     throw new Error(await page.locator('.error').first().innerText());
+   })
   ]);
   const price=Number((await page.locator('.deal-price').innerText()).match(/\$([\d.]+)/)![1]);
   expect(price).toBeGreaterThanOrEqual(20);expect(price).toBeLessThanOrEqual(25);

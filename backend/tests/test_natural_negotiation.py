@@ -63,11 +63,14 @@ def test_ollama_public_writer_has_no_private_context(monkeypatch):
         def json(self):return {'response':json.dumps(self.data)}
     def generate(*args,**kwargs):
         prompt=kwargs['json']['prompt'];prompts.append(prompt)
-        if 'public negotiation' in prompt:return R({'message':'Thanks for considering it. Would {price} work for {duration}?'})
+        if 'validated public action' in prompt:return R({'message':'Thanks for considering it. Would {price} work for {duration}?'})
         return R({'action':'OFFER','terms':T})
     monkeypatch.setattr('httpx.post',generate)
-    a=OllamaProvider().decide({'role':'buyer','own_turn':0,'private':{'target':'15','maximum':'24.73'},'history':[],'last_offer':None,'listing':{'title':'Academic calculator','type':'Rent'}})
-    assert len(prompts)==2 and a.message
+    provider=OllamaProvider()
+    a=provider.decide({'role':'buyer','own_turn':0,'private':{'target':'15','maximum':'24.73'},'history':[],'last_offer':None,'listing':{'title':'Academic calculator','type':'Rent'}})
+    assert a.message is None and len(prompts)==1
+    message,source=provider.narrate({'role':'buyer','action':a.action,'terms':a.terms.model_dump(mode='json'),'previous_offer':None,'item':{'title':'Academic calculator','type':'Rent'},'conversation':[]})
+    assert len(prompts)==2 and message and source=='ollama'
     assert '24.73' in prompts[0] and '24.73' not in prompts[1]
     assert '"private"' not in prompts[1] and '"maximum"' not in prompts[1]
 

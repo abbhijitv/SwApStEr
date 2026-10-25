@@ -70,7 +70,16 @@ def advance(n):
     n['error']=None
     t=action.terms.model_dump(mode='json') if action.terms else None
     invalid = action.action!='REJECT' and (not t or not valid_terms(t,p,l,role))
-    if action.action=='ACCEPT' and (not n['offer'] or not t or Terms.model_validate(t)!=Terms.model_validate(n['offer'])): invalid=True
+    if action.action in ('COUNTER','ACCEPT') and not n['offer']: invalid=True
+    if action.action=='OFFER' and n['offer']: invalid=True
+    if action.action=='ACCEPT' and (not n['offer'] or not t or Terms.model_validate(t)!=Terms.model_validate(n['offer']) or not valid_terms(t,p,l)): invalid=True
+    if action.action=='COUNTER' and n['offer'] and t:
+        incoming=Decimal(n['offer']['price'])
+        proposed=Decimal(t['price'])
+        if role=='buyer' and proposed>incoming:
+            invalid=True
+        if role=='seller' and proposed<incoming:
+            invalid=True
     prior=[m['terms'] for m in n['messages'] if m['role']==role and m.get('terms')]
     if t and prior and action.action in ('OFFER','COUNTER'):
         same_terms=Terms.model_validate(dict(t,price=prior[-1]['price']))==Terms.model_validate(prior[-1])
@@ -82,6 +91,12 @@ def advance(n):
             n.update(status='No agreement',reason='No agreement — agent repeatedly proposed invalid terms.')
         else: n['error']='Agent proposed invalid terms. Server blocked them; retry or switch to mock.'
         return save('negotiation',n,n['id'])
+    narration_source='mock'
+    if n['provider']=='ollama':
+        public_context={'role':role,'action':action.action,'terms':t,'previous_offer':n['offer'],
+          'item':{'title':l['title'],'type':l['type'],'category':l['category']},
+          'conversation':[{'role':m['role'],'text':m['text'],'terms':m.get('terms')} for m in n['messages'][-4:]]}
+        action.message,narration_source=provider.narrate(public_context)
     try:
         text=render_message(action.message,action.action,t,n['offer'])
     except ValueError:
@@ -99,7 +114,7 @@ def advance(n):
     # Allow a justified hold, but terminate repeated unchanged offers instead of looping.
     if action.action in ('OFFER','COUNTER') and len(prior)>=2 and all(Terms.model_validate(x)==Terms.model_validate(t) for x in prior[-2:]):
         n.update(status='No agreement',reason='No agreement — incompatible price constraints.' if Decimal(p['maximum'])<Decimal(l['minimum']) else 'No agreement — repeated offers stalled the negotiation.')
-    n['messages'].append({'role':role,'action':action.action,'text':text,'terms':t,'timestamp':datetime.now(timezone.utc).isoformat()})
+    n['messages'].append({'role':role,'action':action.action,'text':text,'terms':t,'timestamp':datetime.now(timezone.utc).isoformat(),'narration_source':narration_source})
     n['turn']=len(n['messages'])
     if n['turn']>=min(8,int(os.getenv('MAX_NEGOTIATION_TURNS','8'))) and n['status']=='Negotiating':
         n.update(status='No agreement',reason='No agreement — incompatible price constraints.' if Decimal(p['maximum'])<Decimal(l['minimum']) else 'No agreement — maximum negotiation turns reached.')
