@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 from alembic import command
 from alembic.config import Config
@@ -236,3 +236,132 @@ def test_postgresql_never_uses_the_sqlite_backup_api(monkeypatch):
     monkeypatch.setattr(students.sqlite3, 'connect', connect)
     assert students.backup_database() is None
     connect.assert_not_called()
+
+
+@pytest.mark.parametrize('environment', ['production', 'staging', ''])
+def test_non_development_sqlite_startup_never_creates_or_seeds(tmp_path, environment):
+    path = tmp_path / 'must-not-exist.db'
+    env = dict(os.environ, DATABASE_URL='sqlite:///'+str(path), APP_ENV=environment)
+    code = '''
+from unittest.mock import patch
+with patch('sqlalchemy.schema.MetaData.create_all', side_effect=AssertionError('Unexpected DDL')), \\
+     patch('backend.services.store.seed', side_effect=AssertionError('Unexpected demo seed')):
+    import backend.main
+'''
+    subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env, check=True, capture_output=True)
+    assert not path.exists()
+
+
+@pytest.mark.parametrize('mode', ['direct','session','transaction'])
+def test_postgresql_pool_modes_and_isolation_are_explicit(monkeypatch, mode):
+    monkeypatch.setenv('DATABASE_POOL_MODE', mode)
+    factory = Mock()
+    monkeypatch.setattr(database_config, 'create_engine', factory)
+    database_config.create_database_engine('postgresql://user:synthetic@db.example.invalid/postgres')
+    options = factory.call_args.kwargs
+    assert options['isolation_level'] == 'READ COMMITTED'
+    assert options['connect_args']['connect_timeout'] == 10
+    if mode == 'transaction': assert options['connect_args']['prepare_threshold'] is None
+    else: assert 'prepare_threshold' not in options['connect_args']
+
+
+def test_invalid_postgresql_pool_mode_fails_before_connection(monkeypatch):
+    monkeypatch.setenv('DATABASE_POOL_MODE', 'invalid')
+    with pytest.raises(ValueError, match='DATABASE_POOL_MODE'):
+        database_config.create_database_engine('postgresql://user:synthetic@db.example.invalid/postgres')
+
+
+@pytest.mark.parametrize('sslmode', [None,'disable','allow','prefer'])
+def test_supabase_urls_require_encryption_without_echoing_secrets(sslmode):
+    value = 'postgresql://owner:DO_NOT_PRINT@aws-region.pooler.supabase.com:5432/postgres'
+    if sslmode: value += '?sslmode='+sslmode
+    with pytest.raises(ValueError) as error:
+        database_config.create_database_engine(value)
+    assert 'DO_NOT_PRINT' not in str(error.value)
+
+
+def test_diagnostic_defaults_to_no_connection_or_initialization(tmp_path, monkeypatch):
+    from backend.commands.database_check import check
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///'+str(tmp_path/'not-created.db'))
+    monkeypatch.setattr('sqlalchemy.engine.Engine.connect', Mock(side_effect=AssertionError('Unexpected connection')))
+    assert check()['connection'] == 'not tested'
+    assert not (tmp_path/'not-created.db').exists()
+
+
+def test_postgresql_diagnostic_defaults_to_no_remote_connection(monkeypatch):
+    from backend.commands.database_check import check
+    monkeypatch.setenv('DATABASE_URL', 'postgresql://owner:synthetic@db.example.invalid/postgres?sslmode=require')
+    monkeypatch.setattr('psycopg.connect', Mock(side_effect=AssertionError('Remote connection forbidden')))
+    assert check() == {'database':'postgresql','connection':'not tested','schema':'not tested'}
+
+
+def test_read_only_diagnostic_preserves_temp_sqlite_and_detects_baseline(tmp_path, monkeypatch):
+    import hashlib
+    from backend.commands.database_check import check
+    path = tmp_path/'diagnostic.db'
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///'+str(path))
+    command.upgrade(migration_config(), 'head')
+    before = hashlib.sha256(path.read_bytes()).digest()
+    result = check(connect=True)
+    assert result['connection'] == 'ok' and result['schema'] == 'baseline observed'
+    assert result['migration'] == '0001_records'
+    assert hashlib.sha256(path.read_bytes()).digest() == before
+
+
+def test_read_only_diagnostic_cannot_create_missing_sqlite(tmp_path, monkeypatch):
+    from backend.commands.database_check import check
+    path = tmp_path/'missing.db'
+    monkeypatch.setenv('DATABASE_URL', 'sqlite:///'+str(path))
+    with pytest.raises(OperationalError): check(connect=True)
+    assert not path.exists()
+
+
+def test_diagnostic_cli_failure_never_prints_exception_or_credentials(tmp_path):
+    env = dict(os.environ, DATABASE_URL='postgresql://user:DO_NOT_PRINT@db.example.invalid:BAD/postgres')
+    result = subprocess.run([sys.executable,'-m','backend.commands.database_check','--connect'],env=env,cwd=ROOT,capture_output=True,text=True)
+    assert result.returncode == 1 and 'failed' in result.stdout
+    assert 'DO_NOT_PRINT' not in result.stdout+result.stderr and 'Traceback' not in result.stdout+result.stderr
+
+
+def test_postgresql_diagnostic_uses_read_only_transaction_and_rolls_back(monkeypatch):
+    from backend.commands import database_check
+    monkeypatch.setattr(database_check, 'database_url', lambda: database_config.database_url('postgresql://user:synthetic@db.example.invalid/postgres'))
+    engine = MagicMock()
+    connection = engine.connect.return_value.__enter__.return_value
+    connection.scalar.return_value = 1
+    inspector = Mock()
+    inspector.get_table_names.return_value = []
+    monkeypatch.setattr(database_check, 'create_database_engine', lambda *a, **kw: engine)
+    monkeypatch.setattr(database_check, 'inspect', lambda c: inspector)
+    result = database_check.check(connect=True)
+    assert result['schema'] == 'review required'
+    sql = [call.args[0] for call in connection.exec_driver_sql.call_args_list]
+    assert sql == ['SET TRANSACTION READ ONLY', "SET LOCAL statement_timeout = '5s'"]
+    connection.begin.return_value.rollback.assert_called_once()
+    engine.dispose.assert_called_once()
+
+
+def test_postgresql_marketplace_transaction_never_uses_begin_immediate(monkeypatch):
+    from backend.services import account_marketplace
+    factory = MagicMock()
+    db = factory.return_value.__enter__.return_value
+    db.bind.dialect.name = 'postgresql'
+    monkeypatch.setattr(account_marketplace, 'Session', factory)
+    with account_marketplace.writing() as current:
+        assert current is db
+    db.connection.assert_not_called()
+    db.commit.assert_called_once()
+
+
+def test_postgresql_marketplace_locking_and_json_queries_compile():
+    from sqlalchemy import update, or_
+    actor = '97e67eaa-7313-47cd-aae8-1294dd91a6f9'
+    locked = select(Record).where(Record.kind == 'account_listing', Record.id == 10).with_for_update()
+    public = select(Record).where(Record.data['deleted'].as_boolean().is_(False))
+    cas = update(Record).where(Record.kind == 'account_negotiation', Record.data['version'].as_integer() == 4,
+        or_(Record.data['buyer_id'].as_string() == actor, Record.data['seller_id'].as_string() == actor)).values(data={'version':5})
+    dialect = postgresql.dialect()
+    assert 'FOR UPDATE' in str(locked.compile(dialect=dialect))
+    assert 'IS false' in str(public.compile(dialect=dialect))
+    sql = str(cas.compile(dialect=dialect))
+    assert '->>' in sql and 'CAST' in sql and 'UPDATE records' in sql and ' OR ' in sql

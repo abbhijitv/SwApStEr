@@ -1,4 +1,6 @@
 """Application engine/session; SQLite alone retains automatic local initialization."""
+import os
+
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
@@ -12,7 +14,7 @@ Session = sessionmaker(bind=engine)
 
 def initialize_local_database():
     """Preserve the SQLite demo. PostgreSQL schema/data must be prepared explicitly."""
-    if engine.dialect.name != 'sqlite':
+    if engine.dialect.name != 'sqlite' or os.getenv('APP_ENV', 'development') != 'development':
         return False
     Base.metadata.create_all(engine)
     return True

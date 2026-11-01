@@ -1,5 +1,9 @@
 # PostgreSQL preparation and a future Supabase connection
 
+See [Step 4A safe Supabase setup and diagnostics](SUPABASE-POSTGRESQL.md) for the
+current configuration, startup guards, pooling modes and manual initialization.
+The original preparation notes below remain useful for baseline adoption.
+
 Prompt 2 adds database configuration and schema preparation only. SQLite remains
 the default local database. No local PostgreSQL server, Supabase project, remote
 connection, data import, authentication, or production deployment is required.
@@ -19,7 +23,7 @@ explicitly empty, malformed, unsupported, or asynchronous URL fails clearly
 instead of silently selecting a different database.
 
 Importing database metadata or constructing an engine no longer creates tables.
-Importing the FastAPI application still initializes **SQLite only**, then runs the
+Importing the FastAPI application initializes **development SQLite only**, then runs the
 existing idempotent local demo/profile initialization. The existing legacy
 student upgrade and SQLite backup behavior are retained; this change does not
 introduce another automatic data migration. Standalone scripts that previously
@@ -170,10 +174,10 @@ database is authorized:
    Do not treat importing the engine or `/health` as evidence of connectivity.
 
 Transaction poolers (commonly port 6543) have different prepared-statement and
-session-state behavior. This prompt targets direct/session connections and does
-not claim transaction-pooler support. Changing only the port is insufficient;
-driver preparation/pipeline settings and deployment pool sizes need separate
-verification. Follow [Supabase's mode-specific limitations](https://supabase.com/docs/guides/database/connecting-to-postgres#transaction-mode-limitations).
+session-state behavior. Step 4A adds explicit DATABASE_POOL_MODE=transaction to
+disable Psycopg preparation, but live transaction-pooler behavior is unverified.
+Direct/session remain preferred. Changing only the port is insufficient;
+pipeline settings and deployment pool sizes need separate verification. Follow [Supabase's mode-specific limitations](https://supabase.com/docs/guides/database/connecting-to-postgres#transaction-mode-limitations).
 
 ## Remaining migration and production risks
 
@@ -189,9 +193,9 @@ verification. Follow [Supabase's mode-specific limitations](https://supabase.com
   no profiles/listings; explicit approved provisioning or a reviewed import is a
   separate task. The legacy profile upgrader remains available to callers but
   never runs automatically for PostgreSQL.
-- Existing approval/advance locks are process-local. PostgreSQL support does not
-  make multi-worker negotiations safe; cross-process concurrency and transaction
-  design still require work. No authorization or negotiation logic was changed.
+- Legacy demo approval/advance locks remain process-local. Account marketplace
+  mutations now use listing-row locks and versioned conditional updates with
+  READ COMMITTED on PostgreSQL; real PostgreSQL concurrency still needs validation.
 - `records.data` contains private budgets and session tokens. Before putting
   private data in a hosted database, separately configure access/role permissions
   and prevent direct browser/Data API exposure of this storage table. Supabase

@@ -119,6 +119,8 @@ SQLite remains the default local database. PostgreSQL configuration and an expli
 non-destructive Alembic baseline are available for future use; no existing data is
 copied automatically. See [PostgreSQL and future Supabase setup](docs/POSTGRESQL.md)
 before selecting a hosted database or running migrations.
+[Step 4A Supabase readiness and safe manual setup](docs/SUPABASE-POSTGRESQL.md)
+adds an opt-in read-only diagnostic and current pooling guidance.
 
 Supabase account authentication now has a separate session/token foundation and
 `/auth/me`; the original marketplace retains separate demo identities. See

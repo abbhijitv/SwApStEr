@@ -36,7 +36,17 @@ def create_database_engine(value: str | URL | None = None, *, poolclass=None):
         if not url.database or url.database == ':memory:':
             options['poolclass'] = StaticPool
     else:
+        mode = os.getenv('DATABASE_POOL_MODE', 'direct')
+        if mode not in {'direct', 'session', 'transaction'}:
+            raise ValueError('Invalid DATABASE_POOL_MODE; use direct, session or transaction.')
+        hosted = (url.host or '').lower().rstrip('.').endswith(('.supabase.co', '.supabase.com'))
+        if hosted and url.query.get('sslmode') not in {'require', 'verify-ca', 'verify-full'}:
+            raise ValueError('Supabase PostgreSQL requires sslmode=require or certificate verification.')
         options['connect_args'] = {'connect_timeout': 10}
+        if mode == 'transaction':
+            options['connect_args']['prepare_threshold'] = None
+        # Listing locks plus subsequent version reads require fresh statement snapshots.
+        options['isolation_level'] = 'READ COMMITTED'
     if poolclass is not None:
         options['poolclass'] = poolclass
     return create_engine(url, **options)
