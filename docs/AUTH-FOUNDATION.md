@@ -1,5 +1,9 @@
 # Supabase authentication foundation — Prompt 3A
 
+Prompt 3B now adds account screens and email callbacks on top of this foundation;
+see [account UI and manual Supabase testing](AUTH-UI.md). Ownership and approval
+authorization remain deferred to Prompt 3C.
+
 This phase adds account-session plumbing and a separately authenticated FastAPI
 `GET /auth/me`. It does not add signup/login pages, account provisioning, listing
 ownership mapping, account negotiation access, approval changes, or deployment.

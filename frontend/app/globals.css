@@ -393,3 +393,41 @@ textarea:focus-visible {
  .local-marketplace .ownership-tabs>span{max-width:135px}
  .local-marketplace .hero-actions button{min-height:44px}
 }
+
+/* Real account UI is independent of marketplace demo identities. */
+.account-nav{display:flex;align-items:center;justify-content:flex-end;gap:14px;flex-wrap:wrap;font-size:13px;letter-spacing:0}
+.account-nav a,.account-logout{color:#4540b3;font-weight:600;min-height:40px;display:inline-flex;align-items:center}
+.account-nav .account-signup{background:#eeedff;border:1px solid #dfddff;border-radius:9px;padding:0 15px}
+.account-email{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block!important;line-height:40px}
+.account-checking{font-size:11px;color:#64748b}.account-nav-error{flex-basis:100%;color:#a33737;font-size:12px}
+.local-marketplace .nav-right .account-nav{display:flex;align-self:center;gap:12px}
+.local-marketplace .nav-right .account-nav .account-logout{color:#4540b3}
+.business-account-nav{display:flex;justify-content:flex-end;margin-bottom:18px}
+.auth-page{min-height:100vh;background:#fff;color:#20294a}
+.auth-header{max-width:1200px;margin:auto;padding:25px 30px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.auth-layout{max-width:1120px;margin:40px auto 70px;padding:0 30px;display:grid;grid-template-columns:1fr 1fr;gap:90px;align-items:start}
+.auth-intro{padding-top:65px}.auth-intro h1{font-size:clamp(36px,4.4vw,56px);line-height:1.1;letter-spacing:-2px;font-weight:800;margin:22px 0}
+.auth-intro>p{max-width:390px;color:#64748b;font-size:16px;line-height:1.9}
+.auth-promise{display:flex;align-items:start;gap:12px;max-width:390px;margin:35px 0;background:#f5f5ff;border:1px solid #e8e6fc;border-radius:14px;padding:18px;color:#625d87;font-size:13px;line-height:1.8}
+.auth-promise svg{color:#6254dc;margin-top:4px}.auth-intro>a,.auth-demo-link{display:inline-flex;align-items:center;gap:9px;color:#5146d9;font-size:13px;font-weight:600;line-height:1.8}
+.auth-card{border:1px solid #e5e8f4;border-radius:22px;padding:35px;box-shadow:0 15px 55px #283d7310;background:#fff;min-width:0}
+.auth-card h2{font-size:28px;line-height:1.2;font-weight:750;letter-spacing:-.8px}.auth-description{color:#64748b;font-size:14px;line-height:1.8;margin:13px 0 25px}
+.auth-form{display:grid;gap:18px}.auth-form>label{display:grid;gap:8px;font-size:13px;font-weight:600;color:#47516c}
+.auth-form input{width:100%;min-height:48px;border:1px solid #dce1ef;border-radius:10px;padding:12px 14px;background:#fff;font-size:15px;color:#20294a}
+.auth-form input:disabled{background:#f5f6fa}.auth-form input:focus-visible{outline:3px solid #c4bfff;outline-offset:2px}
+.auth-form .primary{min-height:48px;margin-top:3px;font-size:14px}.auth-hint{color:#6b7285;font-size:12px;line-height:1.8}.auth-form .auth-hint{margin-top:-9px}
+.auth-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:13px;margin-top:22px;font-size:13px;color:#5146d9}
+.auth-links button{text-align:left;text-decoration:underline;min-height:35px}.auth-links a{min-height:30px;display:inline-flex;align-items:center}
+.auth-alert,.auth-success{font-size:13px;line-height:1.8;padding:14px 16px;border-radius:10px;margin:15px 0;overflow-wrap:anywhere}
+.auth-alert{background:#fff5f3;color:#9c4035;border:1px solid #f4d9d3}.auth-success{background:#effaf4;color:#246f50;border:1px solid #cee9db}
+.auth-loading,.auth-feedback{font-size:13px;line-height:1.8;color:#626d84;margin:15px 0}.auth-feedback a{color:#5146d9;text-decoration:underline}
+.auth-separation{margin-top:25px;padding-top:18px;border-top:1px solid #eceef5}.auth-footer{text-align:center;padding:25px;color:#748096;font-size:12px}
+.auth-account{display:flex;align-items:center;gap:13px;padding:18px;border-radius:12px;background:#f1faf5;color:#20734e;margin-bottom:20px}.auth-account p{font-size:14px;margin-top:5px;overflow-wrap:anywhere}.auth-account>div{min-width:0}
+.auth-boundary{font-size:13px;line-height:1.9;color:#64748b;padding:15px;background:#f7f7fd;border-radius:10px;margin-bottom:20px}.auth-demo-link{margin-top:24px}
+.auth-page a:focus-visible,.account-nav a:focus-visible,.account-nav button:focus-visible{outline:3px solid #b8b1f1;outline-offset:3px}
+@media(max-width:760px){
+ .auth-header{padding:20px;gap:12px}.auth-header .brand{font-size:19px}.account-nav{font-size:12px;gap:10px}.account-email{max-width:105px}.account-nav .account-signup{padding:0 10px}
+ .auth-layout{display:block;margin:10px auto 30px;padding:0 18px}.auth-intro{padding:15px 5px 28px}.auth-intro h1{font-size:36px;margin:16px 0}.auth-intro>p{font-size:14px}.auth-promise{display:none}.auth-intro>a{margin-top:14px}
+ .auth-card{padding:26px 22px;border-radius:16px}.auth-card h2{font-size:25px}.auth-description{font-size:13px}.auth-footer{padding:20px}
+ .local-marketplace .nav-right{flex-wrap:wrap;justify-content:flex-end;row-gap:8px}.local-marketplace .nav-right .account-nav{flex-basis:100%;padding:4px 0;border-bottom:1px solid #eceef5}.local-marketplace .nav-right .account-email{max-width:170px}
+}

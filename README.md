@@ -122,8 +122,12 @@ before selecting a hosted database or running migrations.
 
 Supabase account authentication now has a separate session/token foundation and
 `/auth/me`; the marketplace still uses demo identities. See
-[authentication setup and rollout boundaries](docs/AUTH-FOUNDATION.md). Login UI
-and real account ownership are deferred; demo endpoints are not account APIs.
+[authentication setup and rollout boundaries](docs/AUTH-FOUNDATION.md). Real
+account ownership remains deferred; demo endpoints are not account APIs.
+
+Prompt 3B adds `/signup`, `/login`, password recovery/reset, `/account`, and
+secure confirmation callbacks. See [account UI setup and manual email testing](docs/AUTH-UI.md).
+Supabase accounts remain separate from local demo profiles until Prompt 3C.
 
 ## Getting Started
 

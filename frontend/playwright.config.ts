@@ -1,2 +1,2 @@
 import { defineConfig } from '@playwright/test';
-export default defineConfig({testDir:'./tests',timeout:60000,workers:1,reporter:'list',use:{baseURL:'http://localhost:3000',headless:true,launchOptions:{args:['--disable-extensions'],executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'},screenshot:'only-on-failure'},outputDir:'../artifacts/browser-tests'});
+export default defineConfig({testDir:'./tests',timeout:60000,workers:1,reporter:'list',use:{baseURL:process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',headless:true,launchOptions:{args:['--disable-extensions'],executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'},screenshot:'only-on-failure'},outputDir:'../artifacts/browser-tests'});

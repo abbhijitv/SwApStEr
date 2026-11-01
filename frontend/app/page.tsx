@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {AccountNav} from './components/account-nav';
 import { ArrowRight, ShoppingBag, Globe2, Bot } from "lucide-react";
 
 export default function HomePage() {
@@ -10,9 +11,7 @@ export default function HomePage() {
             SwApStEr <span className="text-blue-600">AI</span>
           </Link>
 
-          <span className="text-sm text-slate-500">
-            AI Negotiation Platform
-          </span>
+          <AccountNav/>
         </header>
 
         <section className="py-20 text-center">

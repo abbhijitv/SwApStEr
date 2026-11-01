@@ -4,7 +4,13 @@ import {authCookieOptions, supabaseConfig} from './config';
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({request});
-  const config = supabaseConfig();
+  let config;
+  try {config = supabaseConfig();} catch {
+    // No verified identity is supplied. Public/demo pages can explain bad config
+    // instead of crashing before their account-unavailable screen renders.
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  }
   if (!config) return response; // The existing public demo needs no Supabase.
   const refreshHeaders = new Headers();
   const supabase = createServerClient(config.url, config.publishableKey, {

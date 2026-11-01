@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-export const metadata: Metadata = {title:'SwApStEr | Your campus. Your deals. Your AI negotiator.',description:'A student marketplace where independent personal agents negotiate academic essentials. Your constraints stay private. You make the final call.'};
-export default function RootLayout({children}:{children:React.ReactNode}) { return <html lang="en"><body>{children}</body></html> }
+import {AuthProvider} from './components/auth-provider';
+export const metadata: Metadata = {title:'SwApStEr | Better deals, powered by AI',description:'Buy, sell, and rent with independent AI agents. Your constraints stay private. You make the final call.'};
+export default function RootLayout({children}:{children:React.ReactNode}) { return <html lang="en"><body><AuthProvider>{children}</AuthProvider></body></html> }
