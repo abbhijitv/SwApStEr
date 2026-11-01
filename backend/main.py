@@ -24,6 +24,8 @@ def create_listing(body:Listing, student=Depends(identity)):
     return public_listing(save('listing',dict(body.model_dump(mode='json'),seller=student_by_id(student)['display_name'],seller_id=student,icon={'Calculators':'calculator','Lab kits':'cpu','Drafting':'ruler'}.get(body.category,'book'))))
 from backend.routes.negotiations import router
 app.include_router(router)
+from backend.routes.auth import router as auth_router
+app.include_router(auth_router)
 
 @app.get('/students')
 def list_students():

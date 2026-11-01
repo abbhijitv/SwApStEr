@@ -120,6 +120,11 @@ non-destructive Alembic baseline are available for future use; no existing data 
 copied automatically. See [PostgreSQL and future Supabase setup](docs/POSTGRESQL.md)
 before selecting a hosted database or running migrations.
 
+Supabase account authentication now has a separate session/token foundation and
+`/auth/me`; the marketplace still uses demo identities. See
+[authentication setup and rollout boundaries](docs/AUTH-FOUNDATION.md). Login UI
+and real account ownership are deferred; demo endpoints are not account APIs.
+
 ## Getting Started
 
 ### Prerequisites

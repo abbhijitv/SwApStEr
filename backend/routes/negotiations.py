@@ -9,17 +9,21 @@ from backend.services.students import student_by_id
 from backend.services.store import get, save, all_records, public_listing
 from backend.agents.negotiation_coordinator import advance, public, valid_proposal
 from backend.services.audit import record_event
+from backend.auth import reject_account_auth_on_demo
 router=APIRouter()
 LOCKS=defaultdict(threading.Lock)
 
 def demo_only():
     if os.getenv('APP_ENV', 'development') == 'development':
         return
+    if os.getenv('SUPABASE_URL') or os.getenv('SUPABASE_PUBLISHABLE_KEY'):
+        raise HTTPException(403, 'Demo endpoints are disabled with hosted account authentication')
     if os.getenv('PUBLIC_DEMO_MODE', 'false').lower() == 'true':
         return
     raise HTTPException(403, 'Demo features are disabled')
 
 def identity(request:Request):
+    reject_account_auth_on_demo(request)
     demo_only()
     token=request.cookies.get('campus_session')
     session=next((s for s in all_records('session') if secrets.compare_digest(s['token'],token or '')),None)
@@ -29,7 +33,8 @@ def identity(request:Request):
 class Student(BaseModel):
     student: str
 @router.post('/demo/session')
-def switch(body:Student,response:Response):
+def switch(body:Student,response:Response,request:Request):
+    reject_account_auth_on_demo(request)
     demo_only()
     profile=student_by_id(body.student)
     if not profile: raise HTTPException(404,'Student not found')
