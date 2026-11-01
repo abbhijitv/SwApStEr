@@ -26,6 +26,8 @@ from backend.routes.negotiations import router
 app.include_router(router)
 from backend.routes.auth import router as auth_router
 app.include_router(auth_router)
+from backend.routes.marketplace import router as marketplace_router
+app.include_router(marketplace_router)
 
 @app.get('/students')
 def list_students():

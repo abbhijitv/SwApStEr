@@ -5,6 +5,9 @@ It does not map Supabase users to demo profiles or change listing, negotiation,
 approval, SQLite, PostgreSQL, or migration behavior. Nothing is deployed by this
 change. Existing demo APIs are still unsuitable for real public-account writes.
 
+Prompt 3C-1 now adds separate [account marketplace backend APIs](ACCOUNT-MARKETPLACE.md),
+disabled by default. This UI still uses the demo marketplace until Prompt 3C-2.
+
 ## Routes and behavior
 
 | Route | Purpose |
@@ -143,7 +146,8 @@ Offline JWT verification in the backend can continue to accept previously issued
 access tokens until expiry. Local logout is not instantaneous revocation of
 stolen tokens or all devices. Before public launch, review token lifetime,
 revocation, abuse controls, TLS, CORS, callback allowlists, and private-data/RLS
-exposure. Account ownership and approval authorization remain Prompt 3C work.
+exposure. Account ownership and approval APIs are now staged in Prompt 3C-1;
+connecting the marketplace UI remains Prompt 3C-2 work.
 
 ## Verification and tests
 

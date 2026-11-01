@@ -16,6 +16,8 @@ def save(kind, data, id=None):
     data = dict(data); data.pop('id', None)
     with Session() as db:
         r = db.get(Record, id) if id else Record(kind=kind)
+        if r is None or r.kind != kind:
+            raise ValueError('Record not found in the requested namespace')
         r.data = data
         db.add(r); db.commit(); db.refresh(r)
         return dict(r.data, id=r.id)

@@ -48,7 +48,7 @@ def valid_terms(t,p,l,role=None):
         if pickup+timedelta(days=t['rental_days'] if l['type']=='Rent' else 0)>dt(l['available_until']): return False
     return True
 
-def valid_proposal(n):
+def valid_proposal(n, *, listing=None):
     """Recheck the approval boundary without changing how agents negotiate."""
     try:
         participants={n['buyer_id'],n['seller_id']}
@@ -59,7 +59,7 @@ def valid_proposal(n):
             return False
         if n.get('rejected_by') or n.get('rejected_at'):
             return False
-        listing=get('listing',n['listing_id'])
+        listing=get('listing',n['listing_id']) if listing is None else listing
         if not listing or listing['seller_id']!=n['seller_id']:
             return False
         agreement=Terms.model_validate(n['agreement'])
@@ -83,13 +83,18 @@ def valid_proposal(n):
     except (KeyError,ValueError,TypeError,IndexError,AttributeError,ArithmeticError):
         return False
 
-def advance(n):
+def advance(n, *, listing=None, persist=None, project=None, listing_projection=None):
+    # Account orchestration supplies isolated storage/projections. Defaults keep
+    # the existing demo behavior and all negotiation/validation rules intact.
+    persist = persist or (lambda value: save('negotiation',value,value['id']))
+    project = project or public
+    listing_projection = listing_projection or public_listing
     if n['status']=='Agreement proposed':
         n['status']='Awaiting approvals'
         n['version']+=1
-        return save('negotiation',n,n['id'])
+        return persist(n)
     if n['status']!='Negotiating': return n
-    p=n['preferences']; l=get('listing',n['listing_id'])
+    p=n['preferences']; l=get('listing',n['listing_id']) if listing is None else listing
     suggested=initial_terms(p,l)
     reason=None
     audit_reason=None
@@ -105,17 +110,17 @@ def advance(n):
     if reason:
         n.update(status='No agreement',reason=reason)
         record_event(n,'constraint_violation',role='coordinator',action='DECIDE',result='rejected',reason=audit_reason)
-        return save('negotiation',n,n['id'])
+        return persist(n)
     role='buyer' if len(n['messages'])%2==0 else 'seller'
-    ctx=(buyer_agent.context(p,public_listing(l),n['messages'],n['offer'],suggested) if role=='buyer'
-         else seller_agent.context(l,public_listing(l),n['messages'],n['offer'],n['offer'] or suggested))
-    ctx['principal']={'id':n[role+'_id'],'display_name':public(n)[role]}
+    ctx=(buyer_agent.context(p,listing_projection(l),n['messages'],n['offer'],suggested) if role=='buyer'
+         else seller_agent.context(l,listing_projection(l),n['messages'],n['offer'],n['offer'] or suggested))
+    ctx['principal']={'id':n[role+'_id'],'display_name':project(n)[role]}
     provider=MockProvider() if n['provider']=='mock' else OllamaProvider()
     try: action=provider.decide(ctx)
     except ProviderError as e:
         n['error']=str(e)
         record_event(n,'constraint_violation',role=role,action='DECIDE',result='failed',reason='provider_error',turn=n['turn']+1)
-        return save('negotiation',n,n['id'])
+        return persist(n)
     n['error']=None
     t=action.terms.model_dump(mode='json',exclude_none=True,exclude_defaults=True) if action.terms else None
     invalid = action.action!='REJECT' and (not t or not valid_terms(t,p,l,role))
@@ -140,7 +145,7 @@ def advance(n):
         if n['invalid_actions']>=2:
             n.update(status='No agreement',reason='No agreement — agent repeatedly proposed invalid terms.')
         else: n['error']='Agent proposed invalid terms. Server blocked them; retry or switch to mock.'
-        return save('negotiation',n,n['id'])
+        return persist(n)
     narration_source='mock'
     if n['provider']=='ollama':
         public_context={'role':role,'action':action.action,'terms':t,'previous_offer':n['offer'],
@@ -152,7 +157,7 @@ def advance(n):
     except ValueError:
         n['error']='Agent wording did not match safe public terms. Retry or explicitly switch to mock.'
         record_event(n,'constraint_violation',role=role,action=action.action,result='rejected',reason='unsafe_narration',turn=n['turn']+1)
-        return save('negotiation',n,n['id'])
+        return persist(n)
     if action.action=='ACCEPT':
         if not valid_terms(t,p,l):
             n.update(status='No agreement',reason='No agreement — incompatible price constraints.' if Decimal(p['maximum'])<Decimal(l['minimum']) else 'No agreement — incompatible terms.')
@@ -178,4 +183,4 @@ def advance(n):
         n.update(status='No agreement',reason='No agreement — incompatible price constraints.' if Decimal(p['maximum'])<Decimal(l['minimum']) else 'No agreement — maximum negotiation turns reached.')
         record_event(n,'constraint_violation',role='coordinator',action='DECIDE',result='rejected',reason='turn_limit')
     n['version']+=1
-    return save('negotiation',n,n['id'])
+    return persist(n)
