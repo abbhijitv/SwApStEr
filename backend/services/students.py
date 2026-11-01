@@ -3,8 +3,9 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from sqlalchemy import text
+from sqlalchemy.schema import CreateIndex
 from backend.models.database import Session, Record, engine
+from backend.models.records import student_identity_index
 
 MIGRATION = 'dynamic_students_v1'
 
@@ -93,6 +94,8 @@ def migrate_students():
             record.data = data
         db.flush()
         # A unique ID index protects newly created profiles without changing the records schema.
-        db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS unique_student_identity ON records(json_extract(data, '$.identity')) WHERE kind = 'student'"))
+        # SQLite cannot reflect expression indexes reliably. Let each database
+        # handle existence atomically instead of relying on checkfirst reflection.
+        db.execute(CreateIndex(student_identity_index, if_not_exists=True))
         db.add(Record(kind='migration', data={'version': MIGRATION, 'created_at': timestamp}))
         db.commit()

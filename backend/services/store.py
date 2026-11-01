@@ -10,7 +10,7 @@ def get(kind, id):
 
 def all_records(kind):
     with Session() as db:
-        return [dict(r.data, id=r.id) for r in db.query(Record).filter_by(kind=kind).all()]
+        return [dict(r.data, id=r.id) for r in db.query(Record).filter_by(kind=kind).order_by(Record.id).all()]
 
 def save(kind, data, id=None):
     data = dict(data); data.pop('id', None)

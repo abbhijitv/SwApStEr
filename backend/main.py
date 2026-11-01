@@ -5,9 +5,11 @@ from backend.services.store import seed, all_records, get, save, public_listing
 from backend.models.schemas import Listing, StudentCreate
 from backend.services.students import students, student_by_id, create_student
 from backend.routes.negotiations import demo_only
+from backend.models.database import initialize_local_database
 app = FastAPI(title="SwApStEr")
 app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:3000'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
-seed()
+if initialize_local_database():
+    seed()
 @app.get('/health')
 def health(): return {'status':'ok'}
 @app.get('/listings')

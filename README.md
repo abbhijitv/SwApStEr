@@ -115,11 +115,16 @@ Unlike a traditional marketplace, SwApStEr lets agents coordinate on behalf of t
 
 The project runs locally without paid AI APIs.
 
+SQLite remains the default local database. PostgreSQL configuration and an explicit,
+non-destructive Alembic baseline are available for future use; no existing data is
+copied automatically. See [PostgreSQL and future Supabase setup](docs/POSTGRESQL.md)
+before selecting a hosted database or running migrations.
+
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.9 or newer compatible environment
+- Python 3.10 or newer (local setup verified with Python 3.13)
 - Node.js and npm
 - Git
 - Ollama

@@ -1,14 +1,18 @@
-import os
-from sqlalchemy import create_engine, Column, Integer, JSON, String
-from sqlalchemy.orm import declarative_base, sessionmaker
+"""Application engine/session; SQLite alone retains automatic local initialization."""
+from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+
+from backend.models.database_config import create_database_engine
+from backend.models.records import Base, Record
+
 load_dotenv()
-engine = create_engine(os.getenv('DATABASE_URL', 'sqlite:///./campusswap.db'), connect_args={'check_same_thread': False})
+engine = create_database_engine()
 Session = sessionmaker(bind=engine)
-Base = declarative_base()
-class Record(Base):
-    __tablename__ = 'records'
-    id = Column(Integer, primary_key=True)
-    kind = Column(String, index=True)
-    data = Column(JSON)
-Base.metadata.create_all(engine)
+
+
+def initialize_local_database():
+    """Preserve the SQLite demo. PostgreSQL schema/data must be prepared explicitly."""
+    if engine.dialect.name != 'sqlite':
+        return False
+    Base.metadata.create_all(engine)
+    return True
