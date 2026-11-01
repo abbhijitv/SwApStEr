@@ -7,15 +7,16 @@ test('real Ollama TI-84 proposal requires independent buyer and seller approvals
  const sellerContext=await browser.newContext();
  try{
   const seller=await sellerContext.newPage();
-  await page.goto('/');await selectProfile(page,'Abbhijit');
-  await seller.goto('/');await selectProfile(seller,'Shorya Moses');
+  await page.goto('/marketplace');await selectProfile(page,'Abbhijit');
+  await seller.goto('/marketplace');await selectProfile(seller,'Shorya Moses');
   await page.getByRole('textbox',{name:'Search marketplace'}).fill('TI-84');
   await page.getByRole('button',{name:'View & negotiate'}).click();
   await page.getByRole('button',{name:'Let My AI Negotiate'}).click();
   await page.getByLabel('Target price ($)',{exact:true}).fill('15');
   await page.getByLabel('Agent provider').selectOption('ollama');
-  await page.getByRole('button',{name:'Start AI negotiation'}).click();
-  await expect(page.locator('.provider')).toHaveText('Ollama · Qwen 2.5 3B');
+  await page.getByLabel('Preferred pickup location',{exact:true}).fill('Local library entrance');
+ await page.getByRole('button',{name:'Start AI negotiation'}).click();
+  await expect(page.locator('.provider')).toHaveText('Ollama · local AI');
   await expect(page.locator('.agent-card').first()).toContainText('Abbhijit');
   await expect(page.locator('.seller-agent')).toContainText('Shorya Moses');
   const proposal=page.getByRole('button',{name:'Approve Deal',exact:true});
@@ -33,17 +34,17 @@ test('real Ollama TI-84 proposal requires independent buyer and seller approvals
   const id=new URL(page.url()).searchParams.get('negotiation');
   await page.getByRole('button',{name:'Approve Deal',exact:true}).click();
   await expect(page.getByText('You approved this deal.',{exact:true})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.',exact:true})).toHaveCount(0);
   await seller.getByRole('button',{name:'My negotiations',exact:true}).click();
   await seller.locator('.history-list>button').filter({hasText:`Deal #${id} ·`}).click();
   await expect(seller.locator('.approval-person').first()).toContainText('Approved');
   await seller.getByRole('button',{name:'Approve Deal',exact:true}).click();
-  for(const p of [page,seller])await expect(p.getByRole('heading',{name:'Deal confirmed! Both students approved.',exact:true})).toBeVisible({timeout:10000});
+  for(const p of [page,seller])await expect(p.getByRole('heading',{name:'Deal confirmed! Both people approved.',exact:true})).toBeVisible({timeout:10000});
   const record=await (await page.request.get(`http://localhost:8000/negotiations/${id}`)).json();
   mkdirSync('../artifacts',{recursive:true});writeFileSync('../artifacts/natural-ollama-transcript.json',JSON.stringify(record,null,2));
   await selectProfile(seller,'Oumar');
   expect((await seller.request.post(`http://localhost:8000/negotiations/${id}/approve`,{data:{decision:'approve'}})).status()).toBe(403);
-  await expect(page.getByLabel('Demo student',{exact:true}).locator('option:checked')).toHaveText('Abbhijit');
+  await expect(page.getByLabel('Demo profile',{exact:true}).locator('option:checked')).toHaveText('Abbhijit');
   await page.screenshot({path:'../artifacts/ollama-two-student-confirmed.png',fullPage:true});
  }finally{await sellerContext.close()}
 });

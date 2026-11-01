@@ -29,7 +29,7 @@ async function fixtures(page:Page){
 test('all photo groups load, keep stable sources after refresh, and fit desktop/mobile',async({page})=>{
  await page.setViewportSize({width:1440,height:1000});
  await fixtures(page);const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await expect(page.locator('.item-card')).toHaveCount(16);
+ await page.goto('/marketplace');await expect(page.locator('.item-card')).toHaveCount(16);
  const photos=page.locator('.item-card .listing-photo img');
  for(const photo of await photos.all()){await photo.scrollIntoViewIfNeeded();await expect.poll(()=>photo.evaluate((img:HTMLImageElement)=>img.complete&&img.naturalWidth>0&&getComputedStyle(img).opacity==='1')).toBeTruthy()}
  const before=await photos.evaluateAll(images=>images.map(img=>img.getAttribute('src')));
@@ -55,18 +55,18 @@ test('all photo groups load, keep stable sources after refresh, and fit desktop/
  expect(errors).toEqual([]);
 });
 test('broken image shows category fallback without retry loops',async({page})=>{
- await fixtures(page);await page.route('**/_next/image?*',route=>route.abort());await page.goto('/');
+ await fixtures(page);await page.route('**/_next/image?*',route=>route.abort());await page.goto('/marketplace');
  const first=page.locator('.item-card').first();await first.scrollIntoViewIfNeeded();
  await expect(first.locator('.photo-fallback')).toContainText('Calculators photo unavailable');
  await expect(first.locator('img')).toHaveCount(0);
 });
 test('photo summary preserves independent buyer and seller approval controls',async({page})=>{
- await fixtures(page);await page.goto('/?negotiation=99');
+ await fixtures(page);await page.goto('/marketplace?negotiation=99');
  await expect(page.locator('.summary .listing-photo img')).toBeVisible();
  await page.getByRole('button',{name:'Approve Deal',exact:true}).click();
  await expect(page.getByText('You approved this deal.',{exact:true})).toBeVisible();
- await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.',exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Demo: Switch to seller',exact:true}).click();
  await page.getByRole('button',{name:'Approve Deal',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.',exact:true})).toBeVisible();
 });

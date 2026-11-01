@@ -3,7 +3,7 @@ import {selectProfile,newListing} from './profile-helpers';
 const API='http://localhost:8000';
 
 test('dynamic profiles, own listings, isolated history, arbitrary buyers and sellers',async({page})=>{
- await page.goto('/');
+ await page.goto('/marketplace');
  const seller=await selectProfile(page,'Shorya Moses');
  const title='Dynamic campus calculator '+Date.now();
  await newListing(page,title);
@@ -13,11 +13,12 @@ test('dynamic profiles, own listings, isolated history, arbitrary buyers and sel
  await expect(page.getByRole('button',{name:'Your listing · switch profiles to negotiate'})).toBeDisabled();
  await page.getByRole('button',{name:'Close dialog'}).click();
  await selectProfile(page,'Abbhijit');
- await page.getByRole('button',{name:'All campus listings',exact:true}).click();
+ await page.getByRole('button',{name:'All listings',exact:true}).click();
  await page.getByRole('textbox',{name:'Search marketplace'}).fill(title);
  await page.getByRole('button',{name:'View & negotiate'}).click();
  await expect(page.getByRole('dialog')).toContainText('Shorya Moses');
  await page.getByRole('button',{name:'Let My AI Negotiate'}).click();
+ await page.getByLabel('Preferred pickup location',{exact:true}).fill('Local library entrance');
  await page.getByRole('button',{name:'Start AI negotiation'}).click();
  await expect(page.getByRole('button',{name:'Approve Deal'})).toBeVisible({timeout:30000});
  await expect(page.locator('.agent-card').first()).toContainText('Abbhijit');
@@ -33,18 +34,18 @@ test('dynamic profiles, own listings, isolated history, arbitrary buyers and sel
  await expect(page.locator('.history-list')).toContainText(title);
  await page.goto(url);
  await page.getByRole('button',{name:'Approve Deal'}).click();
- await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.'})).toBeVisible();
  // Create a fourth profile from the dropdown, without introducing any code-defined IDs.
- await page.getByLabel('Demo student',{exact:true}).selectOption('__new__');
+ await page.getByLabel('Demo profile',{exact:true}).selectOption('__new__');
  const fourth='Campus student '+Date.now();
  await page.getByLabel('Display name',{exact:true}).fill(fourth);
  await page.getByLabel('University (optional)',{exact:true}).fill('Arizona State');
  await page.getByLabel('Course or major (optional)',{exact:true}).fill('Computer Science');
  await page.getByRole('button',{name:'Create and select profile'}).click();
- await expect(page.getByLabel('Demo student',{exact:true}).locator('option:checked')).toHaveText(fourth);
- const fourthId=await page.getByLabel('Demo student',{exact:true}).inputValue();
+ await expect(page.getByLabel('Demo profile',{exact:true}).locator('option:checked')).toHaveText(fourth);
+ const fourthId=await page.getByLabel('Demo profile',{exact:true}).inputValue();
  await page.reload();
- await expect(page.getByLabel('Demo student',{exact:true})).toHaveValue(fourthId);
+ await expect(page.getByLabel('Demo profile',{exact:true})).toHaveValue(fourthId);
  const own='Fourth student lab kit '+Date.now();
  await newListing(page,own);
  const owned=(await (await page.request.get(API+'/listings')).json()).find((l:{title:string})=>l.title===own);
@@ -52,6 +53,7 @@ test('dynamic profiles, own listings, isolated history, arbitrary buyers and sel
  await page.getByRole('textbox',{name:'Search marketplace'}).fill(title);
  await page.getByRole('button',{name:'View & negotiate'}).click();
  await page.getByRole('button',{name:'Let My AI Negotiate'}).click();
+ await page.getByLabel('Preferred pickup location',{exact:true}).fill('Local library entrance');
  await page.getByRole('button',{name:'Start AI negotiation'}).click();
  await expect(page.getByRole('button',{name:'Approve Deal'})).toBeVisible({timeout:30000});
  await expect(page.locator('.agent-card').first()).toContainText(fourth);

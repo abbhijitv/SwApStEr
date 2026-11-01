@@ -1,8 +1,8 @@
 import {test,expect} from '@playwright/test';
 test('marketplace, successful negotiation, independent approvals, saved history',async({page})=>{
  const errors:string[]=[]; page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');
- await expect(page.getByRole('heading',{name:'Your campus.'})).toBeVisible();
+ await page.goto('/marketplace');
+ await expect(page.getByRole('heading',{name:'Great finds.'})).toBeVisible();
  await expect.poll(async()=>page.locator('.item-card').count()).toBeGreaterThanOrEqual(6);
  await page.getByRole('button',{name:'Textbooks',exact:true}).click();
  await expect(page.locator('.item-card')).toHaveCount(2);
@@ -11,28 +11,30 @@ test('marketplace, successful negotiation, independent approvals, saved history'
  await expect(page.locator('.item-card')).toHaveCount(1);
  await page.getByRole('button',{name:'View & negotiate'}).click();
  await page.getByRole('button',{name:'Let My AI Negotiate'}).click();
+ await page.getByLabel('Preferred pickup location',{exact:true}).fill('Local library entrance');
  await page.getByRole('button',{name:'Start AI negotiation'}).click();
  await expect(page.getByRole('heading',{name:'A better deal, ready for your review.'})).toBeVisible({timeout:30000});
  await expect(page.locator('.message')).toHaveCount(4);
  await expect(page.locator('.provider')).toHaveText('Deterministic mock');
  await expect(page.locator('.deal-price')).toContainText('$20');
  await page.getByRole('button',{name:'Approve Deal'}).click();
- await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.'})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.'})).toHaveCount(0);
  await page.getByRole('button',{name:'Demo: Switch to seller'}).click();
  await page.getByRole('button',{name:'Approve Deal'}).click();
- await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.'})).toBeVisible();
  await page.screenshot({path:'../artifacts/confirmed-desktop.png',fullPage:true});
  await page.reload();
- await expect(page.getByRole('heading',{name:'Deal confirmed! Both students approved.'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Deal confirmed! Both people approved.'})).toBeVisible();
  await page.getByRole('button',{name:'My negotiations',exact:true}).click();
  await expect(page.locator('.history-list')).toContainText('Confirmed');
  expect(errors).toEqual([]);
 });
 test('incompatible budgets fail safely',async({page})=>{
- await page.goto('/');
+ await page.goto('/marketplace');
  await page.getByRole('textbox',{name:'Search marketplace'}).fill('TI-Nspire');
  await page.getByRole('button',{name:'View & negotiate'}).click();
  await page.getByRole('button',{name:'Let My AI Negotiate'}).click();
+ await page.getByLabel('Preferred pickup location',{exact:true}).fill('Local library entrance');
  await page.getByRole('button',{name:'Start AI negotiation'}).click();
  await expect(page.getByText('No agreement — incompatible price constraints.',{exact:true})).toBeVisible({timeout:40000});
  await expect(page.getByRole('button',{name:'Approve Deal'})).toHaveCount(0);
@@ -41,7 +43,7 @@ test('incompatible budgets fail safely',async({page})=>{
 });
 test('mobile marketplace and persistent seller listing',async({page})=>{
  await page.setViewportSize({width:390,height:844});
- await page.goto('/');
+ await page.goto('/marketplace');
  await expect.poll(async()=>page.locator('.item-card').count()).toBeGreaterThanOrEqual(6);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
  await page.screenshot({path:'../artifacts/marketplace-mobile.png',fullPage:true});
@@ -51,7 +53,7 @@ test('mobile marketplace and persistent seller listing',async({page})=>{
  await page.getByLabel('Description',{exact:true}).fill('A complete laboratory kit for the next semester.');
  await page.getByLabel('Asking price ($)',{exact:true}).fill('30');
  await page.getByLabel('Private minimum ($)',{exact:true}).fill('20');
- await page.getByRole('button',{name:'Publish campus listing'}).click();
+ await page.getByRole('button',{name:'Publish listing'}).click();
  await expect(page.getByRole('button',{name:title,exact:true})).toBeVisible();
  await page.reload();
  await expect(page.getByRole('button',{name:title,exact:true})).toBeVisible();

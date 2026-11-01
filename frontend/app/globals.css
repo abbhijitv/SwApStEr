@@ -367,3 +367,29 @@ textarea:focus-visible {
 @media(prefers-reduced-motion:reduce){.listing-photo img{transition:none}.item-card:hover .listing-photo img{transform:none}}
 
 .illustrative-label:focus-visible{outline:2px solid white;outline-offset:2px}
+
+/* General local marketplace; keep platform and B2B page styling independent. */
+.local-marketplace{min-height:100vh;background:#fff}
+.platform-link{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--indigo);white-space:nowrap;margin-right:18px}
+.demo-label{font-size:10px;font-weight:700;color:#5146b0;background:#eeedff;border-radius:4px;padding:4px 6px}
+.local-marketplace .student-switch{gap:7px}
+.local-marketplace .filters{gap:8px;align-items:center}
+.local-marketplace .filters button{font-size:12px;padding:9px 13px;min-height:40px}
+.local-marketplace .filters>span{font-size:12px;color:#626b82}
+.local-marketplace .empty{display:flex;flex-direction:column;align-items:center;gap:16px}
+.local-marketplace .item-meta>span:first-child{overflow-wrap:anywhere}
+.local-marketplace .item-title{min-height:44px}
+.local-marketplace button:focus-visible,.platform-link:focus-visible{outline:2px solid #7468ed;outline-offset:3px}
+.local-marketplace .ownership-tabs button{min-height:44px}
+@media(max-width:760px){
+ .local-marketplace .nav{height:auto}
+ .local-marketplace .nav-inner{flex-wrap:wrap;padding-top:12px;padding-bottom:12px;height:auto;min-height:70px}
+ .local-marketplace .nav-right{margin-left:auto;gap:4px}
+ .platform-link{font-size:11px;margin-right:8px}
+ .local-marketplace .student-switch select{max-width:110px;min-height:40px}
+ .local-marketplace .student-switch .avatar{display:none}
+ .local-marketplace .mobile-history{min-width:36px;min-height:40px;margin-right:2px}
+ .local-marketplace .filters button{font-size:11px;padding:8px 10px}
+ .local-marketplace .ownership-tabs>span{max-width:135px}
+ .local-marketplace .hero-actions button{min-height:44px}
+}

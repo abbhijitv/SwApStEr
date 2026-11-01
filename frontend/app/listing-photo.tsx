@@ -15,7 +15,7 @@ const pools:Record<Exclude<Group,'other'>,string[]>={
  'private-room':['housing-bedroom','housing-bedroom-desk'],
  'room-rental':['housing-room','housing-room-simple'],
 };
-const descriptions:Record<Group,string>={ti84:'TI-84 Plus CE graphing calculator',nspire:'TI-Nspire graphing calculator',books:'Textbooks and study notes at a desk',electronics:'Arduino board, breadboard and electronics components',drafting:'Engineering drawing instruments',apartment:'Apartment interior', 'private-room':'Furnished private bedroom','room-rental':'Bedroom with living or study space',other:'Campus listing'};
+const descriptions:Record<Group,string>={ti84:'TI-84 Plus CE graphing calculator',nspire:'TI-Nspire graphing calculator',books:'Textbooks and study notes at a desk',electronics:'Arduino board, breadboard and electronics components',drafting:'Engineering drawing instruments',apartment:'Apartment interior', 'private-room':'Furnished private bedroom','room-rental':'Bedroom with living or study space',other:'Marketplace listing'};
 function groupFor(item:PhotoItem):Group{
  if(item.housing)return item.housing.listing_type==='Apartment sublease'?'apartment':item.housing.listing_type==='Private room sublease'?'private-room':'room-rental';
  if(item.category==='Calculators')return /nspire/i.test(item.title)?'nspire':'ti84';

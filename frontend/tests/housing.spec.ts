@@ -1,9 +1,9 @@
 import {test,expect} from '@playwright/test';
 import {selectProfile} from './profile-helpers';
-const disclaimer="This agreement records the students' proposed terms only. Any sublease remains subject to landlord or property-manager approval, applicable lease restrictions, and required documentation.";
+const disclaimer="This agreement records the participants' proposed terms only. Any sublease remains subject to landlord or property-manager approval, applicable lease restrictions, and required documentation.";
 test('housing listing, monthly negotiation, two approvals, failure, and mobile layout',async({page,browser})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await selectProfile(page,'Shorya Moses');
+ await page.goto('/marketplace');await selectProfile(page,'Shorya Moses');
  await page.getByRole('button',{name:'List an item',exact:true}).click();
  await page.getByRole('combobox',{name:'Category',exact:true}).selectOption('Housing & Subleases');
  const title='Summer campus sublease '+Date.now();
@@ -14,7 +14,7 @@ test('housing listing, monthly negotiation, two approvals, failure, and mobile l
  await page.getByLabel('Location or neighborhood',{exact:true}).fill('Tempe campus');
  await page.getByLabel('Lease start date',{exact:true}).fill('2027-05-15');
  await page.getByLabel('Lease end date',{exact:true}).fill('2027-08-15');
- await page.getByRole('button',{name:'Publish campus listing'}).click();
+ await page.getByRole('button',{name:'Publish listing'}).click();
  await expect(page.getByRole('button',{name:title,exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Housing & Subleases',exact:true}).click();
  const card=page.locator('.item-card').filter({hasText:title});
@@ -40,7 +40,7 @@ test('housing listing, monthly negotiation, two approvals, failure, and mobile l
  await expect(page.getByText('You approved this deal.',{exact:true})).toBeVisible();
  const context=await browser.newContext();
  try{
-  const seller=await context.newPage();await seller.goto('/');await selectProfile(seller,'Shorya Moses');await seller.goto(url);
+  const seller=await context.newPage();await seller.goto('/marketplace');await selectProfile(seller,'Shorya Moses');await seller.goto(url);
   await seller.getByRole('button',{name:'Approve Deal',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Housing terms mutually accepted.',exact:true})).toBeVisible({timeout:10000});
  }finally{await context.close()}
