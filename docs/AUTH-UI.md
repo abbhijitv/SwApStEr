@@ -6,7 +6,7 @@ approval, SQLite, PostgreSQL, or migration behavior. Nothing is deployed by this
 change. Existing demo APIs are still unsuitable for real public-account writes.
 
 Prompt 3C-1 now adds separate [account marketplace backend APIs](ACCOUNT-MARKETPLACE.md),
-disabled by default. This UI still uses the demo marketplace until Prompt 3C-2.
+disabled by default. Prompt 3C-2 connects a [separate real marketplace UI](ACCOUNT-MARKETPLACE-UI.md).
 
 ## Routes and behavior
 
@@ -147,7 +147,7 @@ access tokens until expiry. Local logout is not instantaneous revocation of
 stolen tokens or all devices. Before public launch, review token lifetime,
 revocation, abuse controls, TLS, CORS, callback allowlists, and private-data/RLS
 exposure. Account ownership and approval APIs are now staged in Prompt 3C-1;
-connecting the marketplace UI remains Prompt 3C-2 work.
+the separate marketplace UI is connected in Prompt 3C-2.
 
 ## Verification and tests
 

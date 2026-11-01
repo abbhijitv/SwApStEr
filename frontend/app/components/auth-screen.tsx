@@ -92,7 +92,7 @@ function AuthContent({mode}: {mode: Mode}) {
   if (mode === 'account') return <>
     {unavailable ? <ConfigurationNotice/> : !user ? <><div className="auth-alert" role="status">Your session has ended, or you are not logged in.</div><Link className="primary full" href="/login?next=/account">Log in to your account <ArrowRight size={16}/></Link></> : <>
       <div className="auth-account"><CheckCircle2 size={24}/><div><strong>Signed in</strong><p>{user.email || 'Authenticated account'}</p></div></div>
-      <p className="auth-boundary">Your real account is not yet connected to marketplace listings or negotiations. The local marketplace still uses separate demo profiles.</p>
+      <Link className="primary" href="/marketplace/account">Open real marketplace</Link><p className="auth-boundary">Your real account uses the separate real marketplace for listings and negotiations. The local demo still uses demo profiles.</p>
       <button className="secondary full" disabled={busy} onClick={async () => {if (!client) return; const current = ++apiGeneration.current; setBusy(true); setApiState('Checking the secure API…'); try {const verified = await getAccountUser(client); if (apiGeneration.current === current) setApiState(verified.id === user.id ? 'Secure API verified your account.' : 'The API identity does not match this session. Please log out and try again.');} catch (failure) {if (apiGeneration.current === current) setApiState((failure as Error).message);} finally {if (apiGeneration.current === current) setBusy(false);}}}>Check secure API connection</button>
       {apiState && <p className="auth-feedback" role="status">{apiState}</p>}
     </>}

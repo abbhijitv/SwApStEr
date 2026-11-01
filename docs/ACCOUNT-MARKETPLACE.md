@@ -1,7 +1,8 @@
 # Account marketplace backend — Prompt 3C-1
 
-This is a staged backend implementation. The existing frontend continues to use
-the demo marketplace. Signup/login alone does not change demo ownership. No
+This is a staged backend implementation. Prompt 3C-2 adds a separate
+[real account frontend](ACCOUNT-MARKETPLACE-UI.md); the existing demo remains separate.
+Signup/login alone does not change demo ownership. No
 deployment, database conversion, or existing record migration is performed.
 
 ## Development configuration
@@ -17,6 +18,10 @@ The existing verifier checks the signature, issuer, expiry, audience, authentica
 role and UUID subject. Neither a publishable key, a demo cookie, nor a supplied
 buyer/seller/user ID authenticates a request. Missing or invalid authentication
 configuration fails closed. There is no fallback to a demo identity.
+
+[Purchase/rental and automatic progression corrections](NEGOTIATION-PROGRESSION.md)
+add duration-free purchase terms, explicit rental-duration validation and a public
+turn limit. The endpoint paths and ownership checks below remain unchanged.
 
 ## Endpoints
 
@@ -108,9 +113,9 @@ Keep the existing non-development Supabase/demo safeguards and do not rely on
 `PUBLIC_DEMO_MODE` as account authorization. The new feature flag does not make
 legacy endpoints safe for public account traffic.
 
-Prompt 3C-2 must connect listing management, preferences, participant history and
-human approval screens to this API, attaching real user access tokens and handling
-versions/409s. It must stop using demo identity selection for account actions.
+Prompt 3C-2 now connects separate account listing management, preferences, participant
+history and human approval screens to this API, attaching real user access tokens
+and handling versions/409s. The account UI has no demo identity selector.
 Public launch also requires abuse/rate controls, real PostgreSQL transaction and
 permissions/TLS testing, database/Data API access policies, and explicit inventory
 reservation rules. Atomicity is per negotiation: this prompt does not prevent

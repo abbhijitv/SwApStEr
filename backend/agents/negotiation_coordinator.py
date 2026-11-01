@@ -11,6 +11,9 @@ from backend.agents.narration import render_message
 from backend.services.audit import record_event
 from backend.agents import housing
 
+def turn_limit():
+    return max(1,min(8,int(os.getenv('MAX_NEGOTIATION_TURNS','8'))))
+
 def dt(s):
     parsed=datetime.fromisoformat(s.replace('Z','+00:00'))
     return parsed.astimezone(ZoneInfo('America/Phoenix')) if parsed.tzinfo else parsed
@@ -33,15 +36,20 @@ def initial_terms(p,l):
             end=min(dt(a['end']),dt(b['end']),dt(p['deadline']))
             preferred=start.replace(hour=17,minute=0)
             if start<=end: candidates.append(preferred if start<=preferred<=end else start)
-    return {'price':p['target'],'pickup':min(candidates).isoformat(),'location':p['location'],'rental_days':p['rental_days']} if candidates else None
+    if not candidates: return None
+    terms={'price':p['target'],'pickup':min(candidates).isoformat(),'location':p['location']}
+    return dict(terms,transaction='purchase') if p.get('transaction')=='purchase' else dict(terms,rental_days=p['rental_days'])
 
 def valid_terms(t,p,l,role=None):
     if l.get('housing'): return housing.valid(t,p,l,role)
+    purchase=p.get('transaction')=='purchase'
+    if purchase and (l['type']!='Buy' or t.get('transaction')!='purchase' or t.get('rental_days') is not None or t.get('return_date') is not None): return False
+    if not purchase and t.get('transaction')=='purchase': return False
     price=Decimal(t['price']); pickup=dt(t['pickup'])
     if pickup.tzinfo is None or t['location']!=p['location']: return False
     if role in (None,'buyer'):
         if price>Decimal(p['maximum']) or not fits(pickup,p['windows']) or pickup>dt(p['deadline']): return False
-        if t['rental_days']!=p['rental_days']: return False
+        if not purchase and t['rental_days']!=p['rental_days']: return False
     if role in (None,'seller'):
         if price<Decimal(l['minimum']) or price>Decimal(l['price']) or not fits(pickup,l['windows']): return False
         if l['type']=='Rent' and t['rental_days']!=l['rental_days']: return False
@@ -83,7 +91,7 @@ def valid_proposal(n, *, listing=None):
     except (KeyError,ValueError,TypeError,IndexError,AttributeError,ArithmeticError):
         return False
 
-def advance(n, *, listing=None, persist=None, project=None, listing_projection=None):
+def advance(n, *, listing=None, persist=None, project=None, listing_projection=None, mock_convergence=False):
     # Account orchestration supplies isolated storage/projections. Defaults keep
     # the existing demo behavior and all negotiation/validation rules intact.
     persist = persist or (lambda value: save('negotiation',value,value['id']))
@@ -94,6 +102,10 @@ def advance(n, *, listing=None, persist=None, project=None, listing_projection=N
         n['version']+=1
         return persist(n)
     if n['status']!='Negotiating': return n
+    if n['turn']>=turn_limit():
+        n.update(status='No agreement',reason='No agreement — maximum negotiation turns reached.')
+        n['version']+=1
+        return persist(n)
     p=n['preferences']; l=get('listing',n['listing_id']) if listing is None else listing
     suggested=initial_terms(p,l)
     reason=None
@@ -115,6 +127,8 @@ def advance(n, *, listing=None, persist=None, project=None, listing_projection=N
     ctx=(buyer_agent.context(p,listing_projection(l),n['messages'],n['offer'],suggested) if role=='buyer'
          else seller_agent.context(l,listing_projection(l),n['messages'],n['offer'],n['offer'] or suggested))
     ctx['principal']={'id':n[role+'_id'],'display_name':project(n)[role]}
+    if mock_convergence and n['provider']=='mock':
+        ctx['concession_rounds']=max(1,turn_limit()//2-1)
     provider=MockProvider() if n['provider']=='mock' else OllamaProvider()
     try: action=provider.decide(ctx)
     except ProviderError as e:
@@ -179,7 +193,7 @@ def advance(n, *, listing=None, persist=None, project=None, listing_projection=N
                  public_price=t['price'] if action.action!='REJECT' else None)
     if stalled:
         record_event(n,'constraint_violation',role='coordinator',action='DECIDE',result='rejected',reason='stalled')
-    if n['turn']>=min(8,int(os.getenv('MAX_NEGOTIATION_TURNS','8'))) and n['status']=='Negotiating':
+    if n['turn']>=turn_limit() and n['status']=='Negotiating':
         n.update(status='No agreement',reason='No agreement — incompatible price constraints.' if Decimal(p['maximum'])<Decimal(l['minimum']) else 'No agreement — maximum negotiation turns reached.')
         record_event(n,'constraint_violation',role='coordinator',action='DECIDE',result='rejected',reason='turn_limit')
     n['version']+=1

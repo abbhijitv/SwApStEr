@@ -491,3 +491,112 @@ def test_versioned_updates_compile_for_both_database_dialects(dialect):
     compiled = str(statement.compile(dialect=dialect))
     assert 'UPDATE records' in compiled
     assert ('JSON_EXTRACT' in compiled) if dialect.name == 'sqlite' else ('->>' in compiled and 'CAST' in compiled)
+
+
+def test_sale_listing_creation_and_edit_allow_omitted_rental_days(clients):
+    body = listing_body(type='Buy')
+    body.pop('rental_days')
+    response = clients[0].post('/marketplace/listings', json=body)
+    assert response.status_code == 201, response.text
+    item = response.json()
+    assert item['type'] == 'Buy'
+    assert item['rental_days'] == 3  # Existing storage default; not a required sale input.
+    edited = clients[0].put(f"/marketplace/listings/{item['id']}", json=dict(body, title='Updated sale item', version=item['version']))
+    assert edited.status_code == 200, edited.text
+    assert edited.json()['type'] == 'Buy'
+
+
+@pytest.mark.parametrize('days', [0, -1, 91, 1.5])
+def test_account_rental_listing_rejects_invalid_duration(clients, days):
+    response = clients[0].post('/marketplace/listings', json=listing_body(rental_days=days))
+    assert response.status_code == 422
+
+
+def test_account_rental_listing_preserves_valid_duration(clients):
+    item = create(clients[0], rental_days=6)
+    assert item['type'] == 'Rent' and item['rental_days'] == 6
+
+
+@pytest.mark.parametrize('field', ['windows', 'available_until'])
+def test_sale_listing_still_requires_pickup_and_availability(clients, field):
+    body = listing_body(type='Buy')
+    body.pop('rental_days')
+    body.pop(field)
+    assert clients[0].post('/marketplace/listings', json=body).status_code == 422
+
+
+@pytest.mark.parametrize('maximum,minimum,expected_agreement', [('950','900',True), ('900','900',True), ('800','900',False), ('1000','999.99',True)])
+def test_purchase_mock_converges_honestly_within_budget_without_rental_terms(clients, maximum, minimum, expected_agreement):
+    listing = create(clients[1], type='Buy', price='1000', minimum=minimum)
+    body = preferences(listing, target='500', maximum=maximum)
+    body.pop('rental_days')
+    item = clients[0].post('/marketplace/negotiations', json=body).json()
+    assert item['status'] == 'Negotiating'
+    internal = stored(service.NEGOTIATION, item['id'])
+    assert 'rental_days' not in internal['preferences']
+    assert internal['preferences']['transaction'] == 'purchase'
+    for _ in range(8):
+        if item['status'] != 'Negotiating': break
+        response = clients[0].post(f"/marketplace/negotiations/{item['id']}/advance", json={'version': item['version']})
+        assert response.status_code == 200, response.text
+        item = response.json()
+        assert not item['error'], item
+        assert_no_constraints(item)
+        for message in item['messages']:
+            assert 'rental_days' not in message['terms']
+            assert 'return_date' not in message['terms']
+            assert message['terms']['transaction'] == 'purchase'
+            assert ' days' not in message['text']
+    assert item['turn'] <= item['turn_limit'] == 8
+    assert (item['status'] == 'Agreement proposed') is expected_agreement
+    assert not any(item['approvals'].values())
+    if expected_agreement:
+        from decimal import Decimal
+        assert Decimal(minimum) <= Decimal(item['agreement']['price']) <= Decimal(maximum)
+        prepared = clients[0].post(f"/marketplace/negotiations/{item['id']}/advance", json={'version': item['version']}).json()
+        first = clients[0].post(f"/marketplace/negotiations/{item['id']}/approve", json={'version': prepared['version'], 'decision': 'approve'}).json()
+        assert first['status'] == 'Awaiting approvals' and first['approvals'][USERS[1]] is False
+        final = clients[1].post(f"/marketplace/negotiations/{item['id']}/approve", json={'version': first['version'], 'decision': 'approve'})
+        assert final.status_code == 200 and final.json()['status'] == 'Confirmed'
+    else:
+        assert item['status'] == 'No agreement' and item['agreement'] is None
+        assert clients[0].post(f"/marketplace/negotiations/{item['id']}/advance", json={'version': item['version']}).status_code == 409
+
+
+@pytest.mark.parametrize('duration', [None, 0, -1, 91, 1.5])
+def test_rental_negotiation_requires_valid_duration(clients, duration):
+    listing = create(clients[1])
+    body = preferences(listing)
+    if duration is None: body.pop('rental_days')
+    else: body['rental_days'] = duration
+    assert clients[0].post('/marketplace/negotiations', json=body).status_code == 422
+
+
+def test_account_mock_obeys_configured_turn_limit(clients, monkeypatch):
+    monkeypatch.setenv('MAX_NEGOTIATION_TURNS', '4')
+    listing = create(clients[1], type='Buy', price='1000', minimum='900')
+    item = start(clients[0], listing, target='500', maximum='800')
+    for _ in range(4):
+        item = clients[0].post(f"/marketplace/negotiations/{item['id']}/advance", json={'version': item['version']}).json()
+    assert item['turn'] == 4 and item['turn_limit'] == 4 and item['status'] == 'No agreement'
+    assert item['agreement'] is None
+
+
+def test_purchase_ollama_schema_omits_duration_without_changing_pricing_strategy(clients, monkeypatch):
+    from backend.agents.ollama_provider import OllamaProvider
+    listing = create(clients[1], type='Buy', price='1000', minimum='900')
+    item = start(clients[0], listing, target='500', maximum='950', provider='ollama')
+    captured = []
+    def generate(self, prompt, schema):
+        captured.append(schema)
+        state = stored(service.NEGOTIATION, item['id'])
+        terms = service.coordinator.initial_terms(state['preferences'], stored(service.LISTING, listing['id']))
+        return json.dumps({'action':'OFFER','terms':terms})
+    monkeypatch.setattr(OllamaProvider, 'generate', generate)
+    monkeypatch.setattr(OllamaProvider, 'narrate', lambda self, ctx: ('Would {price} work for this item?', 'mocked-test'))
+    result = clients[0].post(f"/marketplace/negotiations/{item['id']}/advance", json={'version': 0})
+    assert result.status_code == 200 and not result.json()['error'], result.text
+    schema = captured[0]['$defs']['Terms']
+    assert 'rental_days' not in schema['properties'] and 'rental_days' not in schema['required']
+    assert schema['properties']['transaction'] == {'const':'purchase'}
+    assert result.json()['offer']['transaction'] == 'purchase'

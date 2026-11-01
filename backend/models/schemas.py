@@ -81,7 +81,7 @@ class Terms(BaseModel):
     pickup: Optional[datetime] = None
     location: str
     rental_days: Optional[int] = None
-    transaction: Literal['item', 'housing'] = 'item'
+    transaction: Literal['item', 'housing', 'purchase'] = 'item'
     lease_start: Optional[date] = None
     lease_end: Optional[date] = None
     @model_validator(mode='after')
@@ -89,6 +89,9 @@ class Terms(BaseModel):
         if self.transaction == 'housing':
             if not self.lease_start or not self.lease_end or self.lease_end <= self.lease_start or self.pickup is not None or self.rental_days is not None:
                 raise ValueError('Housing requires ordered lease dates without item pickup terms')
+        elif self.transaction == 'purchase':
+            if self.pickup is None or self.rental_days is not None or self.lease_start or self.lease_end:
+                raise ValueError('Purchases require pickup without rental duration or lease dates')
         elif self.pickup is None or self.rental_days is None or self.lease_start or self.lease_end:
             raise ValueError('Item terms require pickup and duration')
         return self

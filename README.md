@@ -121,7 +121,7 @@ copied automatically. See [PostgreSQL and future Supabase setup](docs/POSTGRESQL
 before selecting a hosted database or running migrations.
 
 Supabase account authentication now has a separate session/token foundation and
-`/auth/me`; the marketplace still uses demo identities. See
+`/auth/me`; the original marketplace retains separate demo identities. See
 [authentication setup and rollout boundaries](docs/AUTH-FOUNDATION.md). Real
 account ownership now has a separate, staged backend API; demo endpoints are not account APIs.
 
@@ -129,7 +129,8 @@ Prompt 3B adds `/signup`, `/login`, password recovery/reset, `/account`, and
 secure confirmation callbacks. See [account UI setup and manual email testing](docs/AUTH-UI.md).
 Supabase accounts remain separate from local demo profiles. Prompt 3C-1 adds
 [account marketplace ownership and authorization](docs/ACCOUNT-MARKETPLACE.md),
-disabled by default. Connecting the frontend to those endpoints remains Prompt 3C-2.
+disabled by default. Prompt 3C-2 connects the separate `/marketplace/account` UI;
+see [local setup and two-account testing](docs/ACCOUNT-MARKETPLACE-UI.md).
 
 ## Getting Started
 

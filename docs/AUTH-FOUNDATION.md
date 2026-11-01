@@ -2,8 +2,7 @@
 
 Prompt 3B now adds account screens and email callbacks on top of this foundation;
 see [account UI and manual Supabase testing](AUTH-UI.md). Prompt 3C-1 now adds
-[staged account ownership and approval APIs](ACCOUNT-MARKETPLACE.md); frontend
-integration remains Prompt 3C-2. The historical phase description below describes 3A.
+[staged account ownership and approval APIs](ACCOUNT-MARKETPLACE.md); the [separate frontend](ACCOUNT-MARKETPLACE-UI.md) is now integrated in Prompt 3C-2. The historical phase description below describes 3A.
 
 This phase adds account-session plumbing and a separately authenticated FastAPI
 `GET /auth/me`. It does not add signup/login pages, account provisioning, listing

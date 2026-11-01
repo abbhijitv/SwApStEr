@@ -17,6 +17,7 @@ class ListingUpdate(AccountListing):
 
 class NegotiationStart(Preferences):
     model_config = ConfigDict(extra='forbid')
+    rental_days: int | None = Field(default=None, ge=1, le=90)
     provider: Literal['mock', 'ollama'] = 'mock'
     location: str = Field(default='', min_length=2, max_length=100)
 

@@ -12,9 +12,10 @@ class MockProvider:
             high=min(high,Decimal(c['listing']['price']));low=min(low,high)
         housing=bool(c.get('listing',{}).get('housing'))
         step=(Decimal(c['listing']['price'])*Decimal('0.1')).quantize(Decimal('0.01')) if housing else Decimal('5')
+        rounds=c.get('concession_rounds')
         if last:
             p=Decimal(last['price'])
-            acceptable = p<=min(high,low+Decimal(n)*step) if buyer else p>=low
+            acceptable = (p<=high if rounds else p<=min(high,low+Decimal(n)*step)) if buyer else p>=low
             if acceptable:
                 return Action(action='ACCEPT',terms=last,message=('At {price}/month for {lease_start} through {lease_end}, these terms work for me. Both students can review the proposal.' if housing else 'Thanks for meeting me halfway. {price} works for me; let’s send the terms for our students to review.' if n else 'That sounds fair. I’m happy with {price}; our students can review the details.'))
         if buyer:
@@ -22,6 +23,13 @@ class MockProvider:
             if last: p=min(p,Decimal(last['price']))
         else:
             p=max(low,high-Decimal(n+1)*(step if housing else Decimal('10')))
+        if rounds:
+            # Each agent sees only its own bounds and the public asking price.
+            # Reach an acceptable boundary in time for the other agent to respond.
+            fraction=min(Decimal(1),Decimal(n)/max(1,rounds-1)) if buyer else min(Decimal(1),Decimal(n+1)/rounds)
+            p=(low+(high-low)*fraction if buyer else high-(high-low)*fraction).quantize(Decimal('0.01'))
+            p=max(low,min(high,p))
+            if last and buyer: p=min(p,Decimal(last['price']))
         purchase=c.get('listing',{}).get('type')=='Buy'
         terms=dict(c['suggested_terms'],price=str(p))
         message=('Hey! Would {price} work for {duration}? I can meet at {location} on {pickup}.' if not last else

@@ -53,14 +53,21 @@ def terms_view(terms):
 
 
 def negotiation_view(item):
+    def visible_terms(terms):
+        result=terms_view(terms)
+        if result and item['item']['type']=='Buy' and not item['item'].get('housing'):
+            result.pop('rental_days',None)
+            result.pop('return_date',None)
+            result['transaction']='purchase'
+        return result
     fields = ('id', 'listing_id', 'status', 'provider', 'turn', 'version', 'created_at', 'updated_at',
               'buyer_id', 'seller_id', 'rejected_by', 'rejected_at', 'cancelled_by', 'cancelled_at', 'reason')
     result = {key: deepcopy(item[key]) for key in fields if key in item}
-    result.update(buyer='Buyer', seller='Seller', item=listing_view(item['item']),
-                  offer=terms_view(item.get('offer')), agreement=terms_view(item.get('agreement')),
+    result.update(turn_limit=coordinator.turn_limit(), buyer='Buyer', seller='Seller', item=listing_view(item['item']),
+                  offer=visible_terms(item.get('offer')), agreement=visible_terms(item.get('agreement')),
                   approvals={item[role+'_id']: item['approvals'].get(item[role+'_id']) is True for role in ('buyer', 'seller')},
                   messages=[{**{key: message[key] for key in ('role', 'action', 'text', 'timestamp')},
-                             'terms': terms_view(message.get('terms'))} for message in item.get('messages', [])],
+                             'terms': visible_terms(message.get('terms'))} for message in item.get('messages', [])],
                   error='The negotiation provider is unavailable or returned an invalid response. Please retry.' if item.get('error') else None)
     return result
 
@@ -211,6 +218,11 @@ def start_negotiation(body, actor):
             fail(403, 'You cannot negotiate on your own listing.')
         if bool(listing.get('housing')) != bool(body.housing):
             fail(422, 'Use preferences matching the listing type.')
+        if listing['type']=='Buy' and not listing.get('housing'):
+            preferences.pop('rental_days', None)
+            preferences['transaction']='purchase'
+        elif not listing.get('housing') and body.rental_days is None:
+            fail(422, 'Rental duration is required for rental negotiations.')
         item = insert(db, NEGOTIATION, {
             'listing_id': listing['id'], 'listing_version': listing['version'], 'item': listing_view(listing),
             'buyer_id': actor, 'seller_id': listing['seller_id'], 'buyer': 'Buyer', 'seller': 'Seller',
@@ -256,7 +268,7 @@ def advance_negotiation(id, actor, version):
         if listing['version'] != item['listing_version']:
             fail(409, 'Listing terms changed. Start a new negotiation.')
     computed = coordinator.advance(deepcopy(item), listing=listing, persist=lambda state: state,
-        project=negotiation_view, listing_projection=listing_view)
+        project=negotiation_view, listing_projection=listing_view, mock_convergence=True)
     if computed['approvals'] != item['approvals']:
         fail(409, 'Agents cannot submit human approvals.')
     allowed_statuses = {'Awaiting approvals'} if item['status'] == 'Agreement proposed' else {'Negotiating', 'Agreement proposed', 'No agreement'}

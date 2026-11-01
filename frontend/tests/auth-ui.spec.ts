@@ -39,7 +39,7 @@ test('signup validates confirmation and guides email confirmation without granti
   await page.goto('/auth/confirm?token_hash=confirm-valid&type=email&next=https://attacker.invalid');
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.locator('.auth-account')).toContainText('new@example.invalid');
-  await expect(page.locator('.auth-boundary')).toContainText('not yet connected');
+  await expect(page.locator('.auth-boundary')).toContainText('separate real marketplace');
 });
 
 test('login, verified API access, navigation, refresh persistence and logout', async ({page}) => {

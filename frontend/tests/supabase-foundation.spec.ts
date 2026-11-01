@@ -104,7 +104,7 @@ test('account API transports a token without demo credentials or a frontend user
     expect(String(input)).toBe('https://api.example.invalid/auth/me');
     expect(init?.credentials).toBe('omit');
     expect(init?.cache).toBe('no-store');
-    expect(init?.headers).toEqual({Authorization: 'Bearer synthetic-access-token'});
+    expect(Object.fromEntries(new Headers(init?.headers))).toEqual({authorization: 'Bearer synthetic-access-token'});
     return Response.json({id: 'verified-by-backend', role: 'authenticated'});
   };
   expect(await getAccountUser(transportClient('synthetic-access-token'))).toEqual({id: 'verified-by-backend', role: 'authenticated'});

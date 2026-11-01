@@ -57,7 +57,7 @@ class OllamaProvider:
           'Seller: NEVER counter below the incoming buyer offer. '
           'ACCEPT copies the incoming terms EXACTLY, including pickup, location and duration. '
           'Prefer a sensible agreement to endless counters; reject only when further progress is impossible. '+
-          ('This is a PURCHASE. Keep rental_days from suggested_terms only for API compatibility; it does not describe a rental. ' if context.get('listing',{}).get('type')=='Buy' else 'This is a RENTAL; retain the requested rental duration. ')+
+          ('This is a PURCHASE. Copy suggested_terms exactly except for price; do not invent rental duration or return dates. ' if context.get('suggested_terms',{}).get('transaction')=='purchase' else 'This is a PURCHASE. Keep rental_days from suggested_terms only for API compatibility; it does not describe a rental. ' if context.get('listing',{}).get('type')=='Buy' else 'This is a RENTAL; retain the requested rental duration. ')+
           'Allowed actions: '+', '.join(allowed)+'. Context: '+json.dumps(context))
         if context.get('listing',{}).get('housing'):
             prompt += ' HOUSING: price is MONTHLY RENT. You represent a student offering housing or seeking housing, not a landlord. Copy transaction=housing, lease_start, lease_end and location from suggested_terms. Never include pickup or rental_days. Dates must cover the required stay. '
@@ -71,6 +71,12 @@ class OllamaProvider:
             props['transaction']={'const':'housing'}
             for key in ('lease_start','lease_end'): props[key]={'type':'string','format':'date'}
             schema['$defs']['Terms']['required']=['price','location','transaction','lease_start','lease_end']
+        elif context.get('suggested_terms',{}).get('transaction')=='purchase':
+            props=schema['$defs']['Terms']['properties']
+            for key in ('rental_days','lease_start','lease_end'): props.pop(key,None)
+            props['transaction']={'const':'purchase'}
+            props['pickup']={'type':'string','format':'date-time'}
+            schema['$defs']['Terms']['required']=['price','pickup','location','transaction']
         else:
             props=schema['$defs']['Terms']['properties']
             for key in ('transaction','lease_start','lease_end'): props.pop(key,None)
