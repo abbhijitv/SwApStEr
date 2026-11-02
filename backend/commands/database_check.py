@@ -17,7 +17,9 @@ from sqlalchemy.pool import NullPool
 from backend.models.database_config import database_url, create_database_engine
 
 
-def check(*, connect=False):
+def check(*, connect=False, security=False):
+    if security and not connect:
+        raise ValueError('Security diagnostics require explicit --connect.')
     url = database_url()
     dialect = url.get_backend_name()
     # Validate lazy engine options without importing application startup.
@@ -52,6 +54,11 @@ def check(*, connect=False):
                     # Never echo arbitrary stored values or error text.
                     result['migration'] = '0001_records' if revisions == ['0001_records'] else 'unexpected'
                 result['schema'] = 'baseline observed' if result.get('record_columns') == 'expected' and result['migration'] == '0001_records' else 'review required'
+                if security:
+                    if dialect != 'postgresql':
+                        raise ValueError('Security diagnostics require PostgreSQL.')
+                    from backend.commands.postgres_security import security_report
+                    result['security'] = security_report(connection)
                 return result
             finally:
                 transaction.rollback()
@@ -62,13 +69,14 @@ def check(*, connect=False):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--connect', action='store_true', help='Explicitly contact DATABASE_URL using a read-only diagnostic transaction.')
+    parser.add_argument('--security', action='store_true', help='With --connect, inspect PostgreSQL grants, RLS and default ACLs without business data.')
     args = parser.parse_args(argv)
     # Driver/SQLAlchemy diagnostics can include connection identifiers. Emit only
     # this command's fixed JSON, including when a driver or configuration fails.
     logging.disable(logging.CRITICAL)
     try:
         load_dotenv()
-        result = check(connect=args.connect)
+        result = check(connect=args.connect, security=args.security)
         print(json.dumps(result))
         return 0
     except Exception:

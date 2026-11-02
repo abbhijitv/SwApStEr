@@ -214,3 +214,6 @@ passed. `alembic heads` reports `0001_records (head)`. The default diagnostic
 reported connection/schema not tested. SQLite, actual environment files and all
 existing migrations retained identical checksums. Live PostgreSQL connectivity,
 DDL execution and runtime concurrency remain unverified.
+
+Step 4D adds [opt-in integration and security verification](POSTGRESQL-SECURITY-VERIFICATION.md).
+It does not run hosted tests or change remote privileges automatically.
